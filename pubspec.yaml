@@ -1,0 +1,29 @@
+name: chord_flow
+description: "Chord Flow — voicing e rivolti per fisarmonica con la mano ferma."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Tipografia: Fraunces (display serif) per titoli e accordi, Inter per la UI.
+  google_fonts: ^6.2.1
+
+  # Sintesi audio cross-platform (oscillatori/wave + filtri) per il timbro ad ancia.
+  flutter_soloud: ^3.2.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

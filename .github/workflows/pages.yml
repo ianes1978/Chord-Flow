@@ -1,0 +1,56 @@
+name: Deploy web to GitHub Pages
+
+# Pubblica la build web di Chord Flow su GitHub Pages a ogni push sul branch
+# di sviluppo (o lanciandolo a mano dalla tab Actions).
+on:
+  push:
+    branches:
+      - claude/mano-ferma-flutter-6ouyz6
+  workflow_dispatch:
+
+# Permessi richiesti dall'azione di deploy su Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un solo deploy alla volta; non annulla quelli già in corso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # base-href = nome del repository, così i percorsi funzionano sul project
+      # site di GitHub Pages (https://<utente>.github.io/<repo>/).
+      - name: Build web
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
