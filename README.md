@@ -69,10 +69,10 @@ che resta praticamente ferma a ogni cambio.
 
 Nella cartella `.github/workflows/` ci sono due workflow:
 
-- **`pages.yml`** — a ogni push compila la build web e la spinge sul branch
-  `gh-pages`, da cui **GitHub Pages** la serve (URL
-  `https://<utente>.github.io/<repo>/`). Va impostato una volta in *Settings →
-  Pages → Source: **Deploy from a branch** → `gh-pages` / `(root)`*.
+- **`pages.yml`** — a ogni push compila la build web e la pubblica su **GitHub
+  Pages** col flusso ufficiale (`actions/deploy-pages`), URL
+  `https://<utente>.github.io/<repo>/`. Richiede *Settings → Pages → Source:
+  **GitHub Actions***.
 - **`release-apk.yml`** — spingendo un tag `v*` (es. `v1.0.0`), o lanciandolo a
   mano, compila l'**APK di release** e lo allega a una GitHub Release (oltre a
   caricarlo come artifact del build).
