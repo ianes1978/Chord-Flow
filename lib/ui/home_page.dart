@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   List<String> _unknown = [];
   int? _highlighted; // indice della card evidenziata durante la riproduzione
   bool _playing = false;
+  bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
 
   @override
   void initState() {
@@ -98,6 +99,8 @@ class _HomePageState extends State<HomePage> {
                         _header(),
                         const SizedBox(height: 18),
                         _legend(),
+                        const SizedBox(height: 12),
+                        _notationToggle(),
                         const SizedBox(height: 18),
                         _inputRow(),
                         if (_unknown.isNotEmpty) ...[
@@ -166,6 +169,40 @@ class _HomePageState extends State<HomePage> {
         _legendDot(AppColors.stayGradient, 'dito fermo'),
         _legendDot(AppColors.moveGradient, 'dito in movimento'),
       ],
+    );
+  }
+
+  /// Switch per scegliere la notazione delle note: solfeggio (Do Re Mi) o
+  /// lettere (A B C). Il nome degli accordi resta sempre con le lettere.
+  Widget _notationToggle() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Note:',
+            style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        const SizedBox(width: 8),
+        _notationLabel('Do Re Mi', !_useLetters),
+        Switch(
+          value: _useLetters,
+          onChanged: (v) => setState(() => _useLetters = v),
+          activeColor: AppColors.brass,
+          activeTrackColor: const Color(0x55C9A24B),
+          inactiveThumbColor: AppColors.brass,
+          inactiveTrackColor: const Color(0x33C9A24B),
+        ),
+        _notationLabel('A B C', _useLetters),
+      ],
+    );
+  }
+
+  Widget _notationLabel(String text, bool active) {
+    return Text(
+      text,
+      style: AppText.ui(
+        size: 13,
+        weight: active ? FontWeight.w700 : FontWeight.w400,
+        color: active ? AppColors.brass : const Color(0x88F2E7D6),
+      ),
     );
   }
 
@@ -270,6 +307,7 @@ class _HomePageState extends State<HomePage> {
           index: i,
           total: _voiced.length,
           highlighted: _highlighted == i,
+          useLetters: _useLetters,
           onTap: () => _playOne(i),
         ),
     ];

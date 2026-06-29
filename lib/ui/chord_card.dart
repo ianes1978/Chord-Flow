@@ -11,6 +11,7 @@ class ChordCard extends StatelessWidget {
   final int index; // 0-based
   final int total;
   final bool highlighted; // evidenziazione durante la riproduzione
+  final bool useLetters; // true = note con lettere (A B C), false = solfeggio
   final VoidCallback onTap;
 
   const ChordCard({
@@ -19,8 +20,13 @@ class ChordCard extends StatelessWidget {
     required this.index,
     required this.total,
     required this.highlighted,
+    required this.useLetters,
     required this.onTap,
   });
+
+  /// Nome della nota secondo la preferenza (lettere o solfeggio).
+  String _noteName(int midi) =>
+      (useLetters ? noteNames : noteNamesIt)[midi % 12];
 
   /// Formatta un delta col segno usando il segno meno tipografico (−).
   String _signed(int delta) => delta > 0 ? '+$delta' : '−${delta.abs()}';
@@ -157,7 +163,7 @@ class ChordCard extends StatelessWidget {
         style: AppText.ui(size: 18, weight: FontWeight.w700, color: color),
       ));
       spans.add(TextSpan(
-        text: '${noteNamesIt[v.midi % 12]}  ',
+        text: '${_noteName(v.midi)}  ',
         style: AppText.ui(size: 16, color: AppColors.cream),
       ));
     }
