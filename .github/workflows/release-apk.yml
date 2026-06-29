@@ -1,12 +1,17 @@
 name: Release APK
 
 # Costruisce l'APK di release di Chord Flow e lo allega a una GitHub Release.
-# Si attiva spingendo un tag "v*" (es. v1.0.0) oppure manualmente dalla tab
-# Actions indicando il nome del tag.
+# Si attiva in tre modi:
+#   - push di un tag "v*" (es. v1.0.0);
+#   - run manuale dalla tab Actions (workflow_dispatch), indicando il tag;
+#   - push sul branch di lavoro con "[release]" nel messaggio di commit
+#     (utile quando non si possono spingere tag direttamente).
 on:
   push:
     tags:
       - 'v*'
+    branches:
+      - claude/mano-ferma-flutter-6ouyz6
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +25,12 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    # Salta i push "normali" sul branch: rilascia solo su tag, run manuale o
+    # commit che contiene "[release]".
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.head_commit.message, '[release]')
     steps:
       - uses: actions/checkout@v4
 
@@ -46,23 +57,25 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/chord-flow-release.apk
 
-      # Determina il nome del tag sia da push del tag sia da run manuale.
+      # Determina il nome del tag in base al tipo di trigger.
       - name: Determine tag
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
             echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=v1.0.0" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload APK to build artifacts
+      - name: Upload APK come artifact del build
         uses: actions/upload-artifact@v4
         with:
           name: chord-flow-release-apk
           path: dist/chord-flow-release.apk
 
-      - name: Create GitHub Release with APK
+      - name: Crea la GitHub Release con l'APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.name }}
