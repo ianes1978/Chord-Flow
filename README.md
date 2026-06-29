@@ -2,7 +2,7 @@
 
 **Voicing & rivolti per fisarmonica, con la mano ferma.**
 
-Chord Flow è uno strumento multipiattaforma (Android, iOS, desktop, web) per
+Chord Flow è uno strumento per **Android e web** dedicato ai
 fisarmonicisti: inserisci un giro di accordi e l'app propone i **rivolti**
 (voicing in posizione chiusa) che si concatenano col **minimo spostamento della
 mano destra**, indicando per ogni accordo la **diteggiatura** (① pollice → ⑤
@@ -69,9 +69,10 @@ che resta praticamente ferma a ogni cambio.
 
 Nella cartella `.github/workflows/` ci sono due workflow:
 
-- **`pages.yml`** — a ogni push compila la build web e la pubblica su **GitHub
-  Pages** (URL `https://<utente>.github.io/<repo>/`). Va abilitato una volta in
-  *Settings → Pages → Source: GitHub Actions*.
+- **`pages.yml`** — a ogni push compila la build web e la spinge sul branch
+  `gh-pages`, da cui **GitHub Pages** la serve (URL
+  `https://<utente>.github.io/<repo>/`). Va impostato una volta in *Settings →
+  Pages → Source: **Deploy from a branch** → `gh-pages` / `(root)`*.
 - **`release-apk.yml`** — spingendo un tag `v*` (es. `v1.0.0`), o lanciandolo a
   mano, compila l'**APK di release** e lo allega a una GitHub Release (oltre a
   caricarlo come artifact del build).

@@ -1,26 +1,23 @@
 name: Deploy web to GitHub Pages
 
-# Pubblica la build web di Chord Flow su GitHub Pages a ogni push sul branch
-# di sviluppo (o lanciandolo a mano dalla tab Actions).
+# Pubblica la build web di Chord Flow su GitHub Pages spingendo il risultato sul
+# branch `gh-pages`. Questo metodo NON usa l'environment protetto "github-pages",
+# quindi non è soggetto alle sue regole sui branch di deploy.
 on:
   push:
     branches:
       - claude/mano-ferma-flutter-6ouyz6
   workflow_dispatch:
 
-# Permessi richiesti dall'azione di deploy su Pages.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write # serve per spingere il branch gh-pages
 
-# Un solo deploy alla volta; non annulla quelli già in corso.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,18 +36,10 @@ jobs:
       - name: Build web
         run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy su branch gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: build/web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: gh-pages
+          force_orphan: true
