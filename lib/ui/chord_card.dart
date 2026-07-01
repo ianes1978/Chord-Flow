@@ -12,6 +12,7 @@ class ChordCard extends StatelessWidget {
   final int total;
   final bool highlighted; // evidenziazione durante la riproduzione
   final bool useLetters; // true = note con lettere (A B C), false = solfeggio
+  final bool compact; // true = vista compatta (dimensioni ridotte)
   final VoidCallback onTap;
 
   const ChordCard({
@@ -21,6 +22,7 @@ class ChordCard extends StatelessWidget {
     required this.total,
     required this.highlighted,
     required this.useLetters,
+    required this.compact,
     required this.onTap,
   });
 
@@ -84,19 +86,20 @@ class ChordCard extends StatelessWidget {
                   )
                 ],
         ),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(compact ? 11 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _header(),
-            const SizedBox(height: 12),
+            SizedBox(height: compact ? 8 : 12),
             _keyboard(),
-            const SizedBox(height: 12),
+            SizedBox(height: compact ? 8 : 12),
             _noteRow(),
-            const SizedBox(height: 6),
+            SizedBox(height: compact ? 4 : 6),
             Text(
               _motionLine(),
-              style: AppText.ui(size: 13, color: const Color(0xFFE9D8BE)),
+              style: AppText.ui(
+                  size: compact ? 11 : 13, color: const Color(0xFFE9D8BE)),
             ),
           ],
         ),
@@ -110,27 +113,35 @@ class ChordCard extends StatelessWidget {
       children: [
         Text(
           voiced.symbol,
-          style: AppText.display(size: 30, weight: FontWeight.w600),
+          style: AppText.display(
+              size: compact ? 22 : 30, weight: FontWeight.w600),
         ),
-        const SizedBox(width: 10),
-        // Badge col nome del rivolto.
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0x22C9A24B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0x55C9A24B)),
-          ),
-          child: Text(
-            voiced.inversionName,
-            style: AppText.ui(
-                size: 12, weight: FontWeight.w600, color: AppColors.brass),
+        SizedBox(width: compact ? 6 : 10),
+        // Badge col nome del rivolto (si accorcia con i puntini se serve).
+        Flexible(
+          child: Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: compact ? 7 : 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0x22C9A24B),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0x55C9A24B)),
+            ),
+            child: Text(
+              voiced.inversionName,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.ui(
+                  size: compact ? 10 : 12,
+                  weight: FontWeight.w600,
+                  color: AppColors.brass),
+            ),
           ),
         ),
-        const Spacer(),
+        SizedBox(width: compact ? 4 : 8),
         Text(
           '${index + 1}/$total',
-          style: AppText.ui(size: 13, color: const Color(0x99F2E7D6)),
+          style: AppText.ui(
+              size: compact ? 11 : 13, color: const Color(0x99F2E7D6)),
         ),
       ],
     );
@@ -139,14 +150,15 @@ class ChordCard extends StatelessWidget {
   Widget _keyboard() {
     // Stessa finestra (C3–C6) per tutte le card: si vede a colpo d'occhio
     // quanto si sposta la mano. Altezza fissa, larghezza responsive.
+    final h = compact ? 72.0 : 96.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         return SizedBox(
           width: constraints.maxWidth,
-          height: 96,
+          height: h,
           child: CustomPaint(
             painter: KeyboardPainter(voiced.voices),
-            size: Size(constraints.maxWidth, 96),
+            size: Size(constraints.maxWidth, h),
           ),
         );
       },
@@ -160,11 +172,12 @@ class ChordCard extends StatelessWidget {
       final color = v.isStay ? AppColors.brass : AppColors.moveA;
       spans.add(TextSpan(
         text: circledFinger(v.finger),
-        style: AppText.ui(size: 18, weight: FontWeight.w700, color: color),
+        style: AppText.ui(
+            size: compact ? 15 : 18, weight: FontWeight.w700, color: color),
       ));
       spans.add(TextSpan(
         text: '${_noteName(v.midi)}  ',
-        style: AppText.ui(size: 16, color: AppColors.cream),
+        style: AppText.ui(size: compact ? 13 : 16, color: AppColors.cream),
       ));
     }
     return RichText(text: TextSpan(children: spans));

@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   int? _highlighted; // indice della card evidenziata durante la riproduzione
   bool _playing = false;
   bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
+  bool _compact = false; // true = forza 2 accordi per riga (vista compatta)
 
   @override
   void initState() {
@@ -100,7 +101,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 18),
                         _legend(),
                         const SizedBox(height: 12),
-                        _notationToggle(),
+                        _toggles(),
                         const SizedBox(height: 18),
                         _inputRow(),
                         if (_unknown.isNotEmpty) ...[
@@ -168,6 +169,40 @@ class _HomePageState extends State<HomePage> {
             style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
         _legendDot(AppColors.stayGradient, 'dito fermo'),
         _legendDot(AppColors.moveGradient, 'dito in movimento'),
+      ],
+    );
+  }
+
+  /// Riga con gli switch di visualizzazione (vanno a capo se stretti).
+  Widget _toggles() {
+    return Wrap(
+      spacing: 20,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _notationToggle(),
+        _compactToggle(),
+      ],
+    );
+  }
+
+  /// Switch per la vista compatta: forza 2 accordi per riga anche su schermo
+  /// stretto.
+  Widget _compactToggle() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Compatta · 2 per riga',
+            style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        const SizedBox(width: 4),
+        Switch(
+          value: _compact,
+          onChanged: (v) => setState(() => _compact = v),
+          activeColor: AppColors.brass,
+          activeTrackColor: const Color(0x55C9A24B),
+          inactiveThumbColor: AppColors.brass,
+          inactiveTrackColor: const Color(0x33C9A24B),
+        ),
       ],
     );
   }
@@ -292,6 +327,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _grid(bool twoCols) {
+    // La vista compatta forza due colonne anche su schermo stretto.
+    final two = twoCols || _compact;
     if (_voiced.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
@@ -300,6 +337,8 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
+    // Card compatte quando lo switch forza due colonne su schermo stretto.
+    final cardsCompact = _compact && !twoCols;
     final cards = <Widget>[
       for (int i = 0; i < _voiced.length; i++)
         ChordCard(
@@ -308,11 +347,12 @@ class _HomePageState extends State<HomePage> {
           total: _voiced.length,
           highlighted: _highlighted == i,
           useLetters: _useLetters,
+          compact: cardsCompact,
           onTap: () => _playOne(i),
         ),
     ];
 
-    if (!twoCols) {
+    if (!two) {
       return Column(
         children: [
           for (final c in cards)
@@ -321,18 +361,19 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Due colonne da ~660px in su.
+    // Due colonne (da ~660px in su, o forzate dalla vista compatta).
+    final gap = cardsCompact ? 10.0 : 16.0;
     final rows = <Widget>[];
     for (int i = 0; i < cards.length; i += 2) {
       final left = cards[i];
       final right = i + 1 < cards.length ? cards[i + 1] : null;
       rows.add(Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.only(bottom: gap),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: left),
-            const SizedBox(width: 16),
+            SizedBox(width: gap),
             Expanded(child: right ?? const SizedBox()),
           ],
         ),
