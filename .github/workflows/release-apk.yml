@@ -30,7 +30,7 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.ref, 'refs/tags/') ||
-      contains(github.event.head_commit.message, '[release]')
+      contains(github.event.head_commit.message, '[release')
     steps:
       - uses: actions/checkout@v4
 
@@ -58,15 +58,20 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk dist/chord-flow-release.apk
 
       # Determina il nome del tag in base al tipo di trigger.
+      # Per il push sul branch estrae "vX.Y.Z" dal messaggio di commit
+      # (es. "[release v1.1.0]"); se assente usa v1.0.0.
       - name: Determine tag
         id: tag
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
             echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           else
-            echo "name=v1.0.0" >> "$GITHUB_OUTPUT"
+            TAG=$(printf '%s' "$COMMIT_MSG" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            echo "name=${TAG:-v1.0.0}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload APK come artifact del build
