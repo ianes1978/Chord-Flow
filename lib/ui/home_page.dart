@@ -24,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   List<Chord> _chords = []; // accordi validi del giro corrente
   List<VoicedChord> _voiced = [];
   List<String> _unknown = [];
+  final Map<int, List<int>> _locked = {}; // indice accordo → voicing bloccato
   int? _highlighted; // indice della card evidenziata durante la riproduzione
   bool _playing = false;
   bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
@@ -59,14 +60,57 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _chords = chords;
       _unknown = unknown;
+      _locked.clear(); // il giro è cambiato: azzera i vincoli
       _voiced = arrange(chords, buttons: _buttons);
     });
   }
 
   /// Ricalcola solo i voicing (senza riparsare), usando la metrica adatta al
-  /// tipo di tastiera scelto.
+  /// tipo di tastiera scelto e rispettando gli accordi bloccati.
   void _rearrange() {
-    setState(() => _voiced = arrange(_chords, buttons: _buttons));
+    setState(() => _voiced = arrange(_chords,
+        buttons: _buttons, locks: _locked.isEmpty ? null : _locked));
+  }
+
+  /// Blocca/sblocca l'accordo [i]: da bloccato usa il voicing corrente come
+  /// vincolo per l'ottimizzatore.
+  void _toggleLock(int i) {
+    if (_locked.containsKey(i)) {
+      _locked.remove(i);
+    } else if (i < _voiced.length) {
+      _locked[i] = List<int>.from(_voiced[i].notes);
+    }
+    _rearrange();
+  }
+
+  /// Mostra le varianti (altri voicing) dell'accordo [i] e permette di
+  /// sceglierne uno, bloccandolo come vincolo.
+  Future<void> _showAlternatives(int i) async {
+    if (i >= _chords.length) return;
+    final chord = _chords[i];
+    // Tutti i candidati in posizione chiusa, ordinati dal più grave.
+    final cands = candidates(chord)..sort((a, b) => a.first.compareTo(b.first));
+    final current = i < _voiced.length ? _voiced[i].notes : const <int>[];
+
+    final chosen = await showModalBottomSheet<List<int>>(
+      context: context,
+      backgroundColor: AppColors.bgBottom,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AlternativesSheet(
+        chord: chord,
+        candidates: cands,
+        current: current,
+        useLetters: _useLetters,
+      ),
+    );
+
+    if (chosen != null) {
+      setState(() => _locked[i] = List<int>.from(chosen));
+      _rearrange();
+    }
   }
 
   Future<void> _playAll() async {
@@ -178,6 +222,17 @@ class _HomePageState extends State<HomePage> {
             style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
         _legendDot(AppColors.stayGradient, 'dito fermo'),
         _legendDot(AppColors.moveGradient, 'dito in movimento'),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.tune, size: 15, color: Color(0xAAF2E7D6)),
+          const SizedBox(width: 4),
+          Text('varianti',
+              style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+          const SizedBox(width: 12),
+          const Icon(Icons.lock, size: 15, color: AppColors.brass),
+          const SizedBox(width: 4),
+          Text('blocca la scelta',
+              style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        ]),
       ],
     );
   }
@@ -384,7 +439,10 @@ class _HomePageState extends State<HomePage> {
           useLetters: _useLetters,
           compact: cardsCompact,
           buttons: _buttons,
+          locked: _locked.containsKey(i),
           onTap: () => _playOne(i),
+          onToggleLock: () => _toggleLock(i),
+          onShowAlternatives: () => _showAlternatives(i),
         ),
     ];
 
@@ -416,5 +474,120 @@ class _HomePageState extends State<HomePage> {
       ));
     }
     return Column(children: rows);
+  }
+}
+
+/// Foglio modale con le varianti (voicing) di un accordo. Tappando una riga la
+/// si sceglie: viene restituita e bloccata come vincolo dell'ottimizzatore.
+class _AlternativesSheet extends StatelessWidget {
+  final Chord chord;
+  final List<List<int>> candidates;
+  final List<int> current;
+  final bool useLetters;
+
+  const _AlternativesSheet({
+    required this.chord,
+    required this.candidates,
+    required this.current,
+    required this.useLetters,
+  });
+
+  bool _sameAs(List<int> v) =>
+      v.length == current.length &&
+      List.generate(v.length, (i) => v[i] == current[i]).every((x) => x);
+
+  String _fingered(List<int> v) {
+    final f = fingersFor(v.length);
+    final names = useLetters ? noteNames : noteNamesIt;
+    return List.generate(
+      v.length,
+      (i) => '${circledFinger(i < f.length ? f[i] : f.last)}'
+          '${names[v[i] % 12]}',
+    ).join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                    color: const Color(0x55F2E7D6),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Text('Varianti per ${chord.symbol}',
+                style: AppText.display(size: 22)),
+            const SizedBox(height: 2),
+            Text('Tocca una variante per bloccarla come vincolo del calcolo.',
+                style: AppText.ui(size: 12, color: const Color(0x99F2E7D6))),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: candidates.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, idx) {
+                  final v = candidates[idx];
+                  final isCurrent = _sameAs(v);
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.pop(context, v),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0x14F2E7D6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: isCurrent
+                                ? AppColors.brass
+                                : const Color(0x33C9A24B),
+                            width: isCurrent ? 2 : 1),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0x22C9A24B),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(invName(chord, v),
+                                style: AppText.ui(
+                                    size: 11,
+                                    weight: FontWeight.w600,
+                                    color: AppColors.brass)),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(_fingered(v),
+                                style: AppText.ui(
+                                    size: 15, color: AppColors.cream)),
+                          ),
+                          if (isCurrent)
+                            const Icon(Icons.check_circle,
+                                color: AppColors.brass, size: 18),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -14,7 +14,10 @@ class ChordCard extends StatelessWidget {
   final bool useLetters; // true = note con lettere (A B C), false = solfeggio
   final bool compact; // true = vista compatta (dimensioni ridotte)
   final bool buttons; // true = bottoniera fisarmonica, false = pianoforte
+  final bool locked; // true = voicing bloccato (vincolo per l'ottimizzatore)
   final VoidCallback onTap;
+  final VoidCallback onToggleLock;
+  final VoidCallback onShowAlternatives;
 
   const ChordCard({
     super.key,
@@ -25,7 +28,10 @@ class ChordCard extends StatelessWidget {
     required this.useLetters,
     required this.compact,
     required this.buttons,
+    required this.locked,
     required this.onTap,
+    required this.onToggleLock,
+    required this.onShowAlternatives,
   });
 
   /// Nome della nota secondo la preferenza (lettere o solfeggio).
@@ -139,13 +145,35 @@ class ChordCard extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(width: compact ? 4 : 8),
+        SizedBox(width: compact ? 2 : 4),
+        // Pulsante "Varianti": mostra gli altri voicing possibili.
+        _iconBtn(Icons.tune, onShowAlternatives, active: false),
+        // Pulsante "Blocca": fissa la scelta come vincolo del calcolo.
+        _iconBtn(locked ? Icons.lock : Icons.lock_open, onToggleLock,
+            active: locked),
+        SizedBox(width: compact ? 2 : 4),
         Text(
           '${index + 1}/$total',
           style: AppText.ui(
               size: compact ? 11 : 13, color: const Color(0x99F2E7D6)),
         ),
       ],
+    );
+  }
+
+  /// Piccolo pulsante-icona compatto (senza l'area di tap gigante di IconButton).
+  Widget _iconBtn(IconData icon, VoidCallback onTap, {required bool active}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+        child: Icon(
+          icon,
+          size: compact ? 16 : 19,
+          color: active ? AppColors.brass : const Color(0xAAF2E7D6),
+        ),
+      ),
     );
   }
 

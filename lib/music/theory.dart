@@ -287,9 +287,22 @@ typedef TransFn = double Function(List<int> a, List<int> b);
 ///
 /// Con [buttons] = true usa la metrica della bottoniera cromatica invece di
 /// quella del pianoforte (semitoni).
-List<List<int>> optimize(List<Chord> chords, {bool buttons = false}) {
+///
+/// [locks] vincola alcuni accordi a un voicing preciso (indice accordo →
+/// voicing): quelli restano fissi e l'ottimizzatore lavora sugli altri.
+List<List<int>> optimize(
+  List<Chord> chords, {
+  bool buttons = false,
+  Map<int, List<int>>? locks,
+}) {
   final tr = buttons ? transButtons : trans;
   final cands = chords.map(candidates).toList();
+  // Applica i vincoli: il voicing bloccato diventa l'unico candidato.
+  if (locks != null) {
+    locks.forEach((k, v) {
+      if (k >= 0 && k < cands.length && v.isNotEmpty) cands[k] = [v];
+    });
+  }
   final n = chords.length;
   if (n == 0) return [];
   if (n == 1) {
