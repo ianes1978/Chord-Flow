@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../music/theory.dart';
 import '../music/voicing.dart';
@@ -130,5 +132,93 @@ class KeyboardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant KeyboardPainter oldDelegate) =>
+      oldDelegate.voices != voices;
+}
+
+/// Disegna la **bottoniera cromatica** della fisarmonica (sistema C / do-griff)
+/// da [kLow] a [kHigh], stessa finestra del pianoforte così il confronto tra
+/// card resta immediato.
+///
+/// Le note salgono cromaticamente a zig-zag su 3 file: la fila è `midi % 3`
+/// (fila 0 = Do, Re♯, Fa♯, La; fila 1 = Do♯, Mi, Sol, La♯; fila 2 = Re, Fa,
+/// Sol♯, Si). Nella stessa fila i bottoni distano una terza minore (3 semitoni),
+/// e le file sono sfalsate in orizzontale per rendere la diagonale cromatica.
+class AccordionPainter extends CustomPainter {
+  /// Voci del voicing corrente (con dito e stato fermo/in movimento).
+  final List<VoiceState> voices;
+
+  AccordionPainter(this.voices);
+
+  // Pitch class "naturali" (come i tasti bianchi del piano), per orientarsi.
+  static const Set<int> _naturals = {0, 2, 4, 5, 7, 9, 11};
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const maxCol = (kHigh - kLow) / 3.0; // ~12 colonne per fila
+    final unit = size.width / (maxCol + 1.6);
+    final rowGap = size.height / 3;
+    final radius = math.min(unit * 0.42, rowGap * 0.42);
+
+    // Mappa midi → voce attiva.
+    final active = <int, VoiceState>{};
+    for (final v in voices) {
+      active[v.midi] = v;
+    }
+
+    final outline = Paint()
+      ..color = const Color(0x44231B18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (int m = kLow; m <= kHigh; m++) {
+      final pc = m % 12;
+      final r = m % 3; // fila 0/1/2
+      final colf = (m - kLow) / 3.0; // posizione + sfalsamento diagonale
+      final center = Offset((colf + 0.8) * unit, (r + 0.5) * rowGap);
+
+      // Bottone base: chiaro per i naturali, scuro per le alterazioni.
+      final natural = _naturals.contains(pc);
+      canvas.drawCircle(center, radius,
+          Paint()..color = natural ? AppColors.ivoryKey : AppColors.blackKey);
+
+      final v = active[m];
+      if (v != null) {
+        canvas.drawCircle(center, radius, _fillPaint(v, center, radius));
+        _drawFinger(canvas, center, radius, v);
+      } else if (pc == 0) {
+        // Riferimento visivo sui bottoni Do.
+        canvas.drawCircle(center, radius * 0.28,
+            Paint()..color = const Color(0x66C9A24B));
+      }
+      canvas.drawCircle(center, radius, outline);
+    }
+  }
+
+  Paint _fillPaint(VoiceState v, Offset center, double radius) {
+    final grad = v.isStay ? AppColors.stayGradient : AppColors.moveGradient;
+    return Paint()
+      ..shader =
+          grad.createShader(Rect.fromCircle(center: center, radius: radius));
+  }
+
+  void _drawFinger(Canvas canvas, Offset center, double radius, VoiceState v) {
+    final textColor = v.isStay ? AppColors.blackKey : Colors.white;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '${v.finger}',
+        style: TextStyle(
+          color: textColor,
+          fontSize: (radius * 1.15).clamp(9.0, 18.0),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas,
+        Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant AccordionPainter oldDelegate) =>
       oldDelegate.voices != voices;
 }

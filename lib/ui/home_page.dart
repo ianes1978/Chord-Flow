@@ -27,6 +27,7 @@ class _HomePageState extends State<HomePage> {
   bool _playing = false;
   bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
   bool _compact = false; // true = forza 2 accordi per riga (vista compatta)
+  bool _buttons = false; // true = bottoniera fisarmonica, false = pianoforte
 
   @override
   void initState() {
@@ -181,7 +182,30 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _notationToggle(),
+        _keyboardToggle(),
         _compactToggle(),
+      ],
+    );
+  }
+
+  /// Switch per il tipo di tastiera: pianoforte o bottoniera della fisarmonica.
+  Widget _keyboardToggle() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Tastiera:',
+            style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        const SizedBox(width: 8),
+        _notationLabel('Piano', !_buttons),
+        Switch(
+          value: _buttons,
+          onChanged: (v) => setState(() => _buttons = v),
+          activeColor: AppColors.brass,
+          activeTrackColor: const Color(0x55C9A24B),
+          inactiveThumbColor: AppColors.brass,
+          inactiveTrackColor: const Color(0x33C9A24B),
+        ),
+        _notationLabel('Bottoni', _buttons),
       ],
     );
   }
@@ -348,6 +372,7 @@ class _HomePageState extends State<HomePage> {
           highlighted: _highlighted == i,
           useLetters: _useLetters,
           compact: cardsCompact,
+          buttons: _buttons,
           onTap: () => _playOne(i),
         ),
     ];

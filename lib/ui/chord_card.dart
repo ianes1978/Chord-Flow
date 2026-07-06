@@ -13,6 +13,7 @@ class ChordCard extends StatelessWidget {
   final bool highlighted; // evidenziazione durante la riproduzione
   final bool useLetters; // true = note con lettere (A B C), false = solfeggio
   final bool compact; // true = vista compatta (dimensioni ridotte)
+  final bool buttons; // true = bottoniera fisarmonica, false = pianoforte
   final VoidCallback onTap;
 
   const ChordCard({
@@ -23,6 +24,7 @@ class ChordCard extends StatelessWidget {
     required this.highlighted,
     required this.useLetters,
     required this.compact,
+    required this.buttons,
     required this.onTap,
   });
 
@@ -157,7 +159,9 @@ class ChordCard extends StatelessWidget {
           width: constraints.maxWidth,
           height: h,
           child: CustomPaint(
-            painter: KeyboardPainter(voiced.voices),
+            painter: buttons
+                ? AccordionPainter(voiced.voices)
+                : KeyboardPainter(voiced.voices),
             size: Size(constraints.maxWidth, h),
           ),
         );
