@@ -148,6 +148,33 @@ void main() {
     });
   });
 
+  group('optimize bottoniera — metrica fisarmonica', () {
+    test('produce voicing validi (basso = nota accordo, span ≤ 12)', () {
+      final chords =
+          parseProgression('D A Bm G').map((r) => r.chord!).toList();
+      final vs = optimize(chords, buttons: true);
+      expect(vs.length, 4);
+      for (int i = 0; i < chords.length; i++) {
+        final v = vs[i];
+        final pcs = chords[i].pitchClasses.toSet();
+        expect(pcs.contains(v.first % 12), isTrue);
+        expect(v.last - v.first, lessThanOrEqualTo(12));
+        for (final n in v) {
+          expect(pcs.contains(n % 12), isTrue);
+        }
+      }
+    });
+
+    test('arrange con buttons:true resta coerente e ciclico', () {
+      final chords =
+          parseProgression('Dmaj7 G7 C').map((r) => r.chord!).toList();
+      final arr = arrange(chords, buttons: true);
+      expect(arr.length, 3);
+      expect(arr.first.isFirst, isTrue);
+      expect(arr.first.prevSymbol, 'C'); // confronto ciclico con l'ultimo
+    });
+  });
+
   group('fingersFor', () {
     test('mappa il numero di voci alle dita', () {
       expect(fingersFor(2), [1, 5]);

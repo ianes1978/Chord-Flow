@@ -6,10 +6,10 @@ import 'voicing.dart';
 /// sceglie i voicing con l'ottimizzatore ciclico, assegna la diteggiatura e
 /// calcola lo stato di ogni dito confrontando ogni accordo col precedente nel
 /// ciclo (il primo si confronta con l'ultimo).
-List<VoicedChord> arrange(List<Chord> chords) {
+List<VoicedChord> arrange(List<Chord> chords, {bool buttons = false}) {
   if (chords.isEmpty) return [];
 
-  final voicings = optimize(chords);
+  final voicings = optimize(chords, buttons: buttons);
   final n = chords.length;
   final result = <VoicedChord>[];
 

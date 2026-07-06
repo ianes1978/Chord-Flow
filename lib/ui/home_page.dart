@@ -21,6 +21,7 @@ class _HomePageState extends State<HomePage> {
       TextEditingController(text: 'D A Bm G');
   final Synth _synth = Synth();
 
+  List<Chord> _chords = []; // accordi validi del giro corrente
   List<VoicedChord> _voiced = [];
   List<String> _unknown = [];
   int? _highlighted; // indice della card evidenziata durante la riproduzione
@@ -56,9 +57,16 @@ class _HomePageState extends State<HomePage> {
       }
     }
     setState(() {
+      _chords = chords;
       _unknown = unknown;
-      _voiced = arrange(chords);
+      _voiced = arrange(chords, buttons: _buttons);
     });
+  }
+
+  /// Ricalcola solo i voicing (senza riparsare), usando la metrica adatta al
+  /// tipo di tastiera scelto.
+  void _rearrange() {
+    setState(() => _voiced = arrange(_chords, buttons: _buttons));
   }
 
   Future<void> _playAll() async {
@@ -199,7 +207,10 @@ class _HomePageState extends State<HomePage> {
         _notationLabel('Piano', !_buttons),
         Switch(
           value: _buttons,
-          onChanged: (v) => setState(() => _buttons = v),
+          onChanged: (v) {
+            _buttons = v;
+            _rearrange(); // ricalcola i voicing con la metrica giusta
+          },
           activeColor: AppColors.brass,
           activeTrackColor: const Color(0x55C9A24B),
           inactiveThumbColor: AppColors.brass,

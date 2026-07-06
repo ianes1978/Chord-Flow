@@ -238,21 +238,65 @@ double trans(List<int> a, List<int> b) {
   return cost;
 }
 
+// --- Metrica per la bottoniera cromatica (sistema C / do-griff) ---
+//
+// Sul pianoforte la distanza fisica è proporzionale ai semitoni; sulla
+// bottoniera no. Modelliamo la posizione di ogni nota sulla griglia a bottoni:
+// la fila è `midi % 3` (asse x, 3 file), e lungo ogni fila i bottoni salgono
+// per terze minori, quindi la posizione verticale è `midi / 3` (asse y). Così
+// una terza minore = un bottone, un'ottava = 4 bottoni sulla stessa fila, e le
+// quinte/terze cadono molto vicine — come sullo strumento reale.
+
+double _btnDistance(int a, int b) {
+  final dx = (a % 3) - (b % 3); // fila
+  final dy = (a / 3.0) - (b / 3.0); // posizione lungo la fila
+  return _sqrt(dx * dx + dy * dy);
+}
+
+double _sqrt(double x) {
+  // Newton, sufficiente e senza import extra in questo file.
+  if (x <= 0) return 0;
+  var g = x;
+  for (int i = 0; i < 20; i++) {
+    g = 0.5 * (g + x / g);
+  }
+  return g;
+}
+
+/// Costo di transizione sulla **bottoniera**: somma delle distanze fisiche
+/// bottone-per-bottone, più la penalità per il cambio di numero di voci.
+double transButtons(List<int> a, List<int> b) {
+  final n = a.length < b.length ? a.length : b.length;
+  var cost = 0.0;
+  for (int i = 0; i < n; i++) {
+    cost += _btnDistance(a[i], b[i]);
+  }
+  cost += (a.length - b.length).abs() * 2.0;
+  return cost;
+}
+
+/// Firma di una funzione di costo di transizione tra due voicing.
+typedef TransFn = double Function(List<int> a, List<int> b);
+
 // ---------------------------------------------------------------------------
 // Ottimizzatore ciclico (programmazione dinamica)
 // ---------------------------------------------------------------------------
 
 /// Sceglie per ogni accordo il voicing che minimizza lo spostamento totale
 /// della mano, **incluso il rientro ultimo→primo** (il giro è un ciclo).
-List<List<int>> optimize(List<Chord> chords) {
+///
+/// Con [buttons] = true usa la metrica della bottoniera cromatica invece di
+/// quella del pianoforte (semitoni).
+List<List<int>> optimize(List<Chord> chords, {bool buttons = false}) {
+  final tr = buttons ? transButtons : trans;
   final cands = chords.map(candidates).toList();
   final n = chords.length;
   if (n == 0) return [];
   if (n == 1) {
     // Singolo accordo: scegliamo il voicing più centrato.
-    return [_openDp(cands).first];
+    return [_openDp(cands, tr).first];
   }
-  if (n < 2) return _openDp(cands);
+  if (n < 2) return _openDp(cands, tr);
 
   double best = double.infinity;
   List<List<int>>? bestSeq;
@@ -274,7 +318,7 @@ List<List<int>> optimize(List<Chord> chords) {
         int bestI = -1;
         for (int i = 0; i < cands[k - 1].length; i++) {
           if (dp[k - 1][i] == double.infinity) continue;
-          final cost = dp[k - 1][i] + trans(cands[k - 1][i], cands[k][j]);
+          final cost = dp[k - 1][i] + tr(cands[k - 1][i], cands[k][j]);
           if (cost < bestPrev) {
             bestPrev = cost;
             bestI = i;
@@ -288,7 +332,7 @@ List<List<int>> optimize(List<Chord> chords) {
     // Chiudiamo il giro: rientro dall'ultimo accordo al voicing di partenza.
     for (int i = 0; i < cands[n - 1].length; i++) {
       if (dp[n - 1][i] == double.infinity) continue;
-      final total = dp[n - 1][i] + trans(cands[n - 1][i], cands[0][s]);
+      final total = dp[n - 1][i] + tr(cands[n - 1][i], cands[0][s]);
       if (total < best) {
         best = total;
         // Backtracking per ricostruire la sequenza.
@@ -303,12 +347,12 @@ List<List<int>> optimize(List<Chord> chords) {
     }
   }
 
-  return bestSeq ?? _openDp(cands);
+  return bestSeq ?? _openDp(cands, tr);
 }
 
 /// DP aperta (senza termine di chiusura ciclica): minimizza lo spostamento
 /// scegliendo alla fine il minimo sull'ultimo livello.
-List<List<int>> _openDp(List<List<List<int>>> cands) {
+List<List<int>> _openDp(List<List<List<int>>> cands, TransFn tr) {
   final n = cands.length;
   if (n == 0) return [];
 
@@ -325,7 +369,7 @@ List<List<int>> _openDp(List<List<List<int>>> cands) {
       int bestI = -1;
       for (int i = 0; i < cands[k - 1].length; i++) {
         if (dp[k - 1][i] == double.infinity) continue;
-        final cost = dp[k - 1][i] + trans(cands[k - 1][i], cands[k][j]);
+        final cost = dp[k - 1][i] + tr(cands[k - 1][i], cands[k][j]);
         if (cost < bestPrev) {
           bestPrev = cost;
           bestI = i;
