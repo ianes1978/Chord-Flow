@@ -300,7 +300,7 @@ class _HomePageState extends State<HomePage> {
             builder: (context, constraints) {
               // In vista compatta allarghiamo il contenitore per sfruttare lo
               // schermo grande (più colonne, tutto in una schermata).
-              final boxMax = _compact ? 1600.0 : 980.0;
+              final boxMax = _compact ? 2400.0 : 980.0;
               final contentW =
                   (constraints.maxWidth - 40).clamp(0.0, boxMax);
               return SingleChildScrollView(
@@ -1032,9 +1032,9 @@ class _HomePageState extends State<HomePage> {
 
   Widget _grid(double maxWidth) {
     // Numero di colonne: in vista compatta tante quante ne stanno (schermo
-    // grande = tutto in una schermata), altrimenti 1 (mobile) o 2 (≥660px).
+    // grande = più card affiancate), altrimenti 1 (mobile) o 2 (≥660px).
     final int cols = _compact
-        ? (maxWidth / 250).floor().clamp(2, 6)
+        ? (maxWidth / 230).floor().clamp(2, 10)
         : (maxWidth >= 660 ? 2 : 1);
     if (_voiced.isEmpty) {
       return Padding(
