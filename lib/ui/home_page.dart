@@ -44,6 +44,7 @@ class _HomePageState extends State<HomePage> {
   int _rhythm = 0; // indice del ritmo selezionato
   bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
   String? _stradFilter; // accordo filtrato nel pannello Stradella (null = tutti)
+  String? _currentSong; // nome della canzone caricata/salvata (per "Salva")
   String _kbPreset = 'free'; // estensione tastiera destra (preset)
   int _customLow = 57; // tastiera personalizzata: primo tasto bianco (MIDI)
   int _customWhites = 16; // tastiera personalizzata: numero di tasti bianchi
@@ -231,13 +232,81 @@ class _HomePageState extends State<HomePage> {
 
   /// Blocca/sblocca l'accordo [i]: da bloccato usa il voicing corrente come
   /// vincolo per l'ottimizzatore.
-  void _toggleLock(int i) {
-    if (_locked.containsKey(i)) {
-      _locked.remove(i);
+  Future<void> _toggleLock(int i) async {
+    final unlocking = _locked.containsKey(i);
+    final scope =
+        await _askScope(i, unlocking ? 'Sblocca' : 'Blocca questa scelta');
+    if (scope == null) return;
+    if (unlocking) {
+      for (final j in scope) {
+        _locked.remove(j);
+      }
     } else if (i < _voiced.length) {
-      _locked[i] = List<int>.from(_voiced[i].notes);
+      final v = List<int>.from(_voiced[i].notes);
+      for (final j in scope) {
+        _locked[j] = List<int>.from(v);
+      }
     }
     _rearrange();
+  }
+
+  /// Se l'accordo [i] compare più volte nel giro, chiede a quali occorrenze
+  /// applicare la modifica: solo questa, questa e le successive, o tutte.
+  /// Restituisce gli indici scelti, o null se annullato.
+  Future<List<int>?> _askScope(int i, String action) async {
+    if (i >= _chords.length) return [i];
+    final sym = _chords[i].symbol;
+    final all = [
+      for (int j = 0; j < _chords.length; j++)
+        if (_chords[j].symbol == sym) j,
+    ];
+    if (all.length <= 1) return [i];
+    final next = [i, ...all.where((j) => j > i)];
+
+    Widget option(String label, List<int> value) => Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(value),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0x66C9A24B)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(label,
+                  style: AppText.ui(size: 14, color: AppColors.cream)),
+            ),
+          ),
+        );
+
+    return showDialog<List<int>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgBottom,
+        title: Text('$action · $sym', style: AppText.display(size: 20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$sym compare ${all.length} volte nel giro. A quali vuoi '
+              'applicarlo?',
+              style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6)),
+            ),
+            option('Solo questo (n° ${i + 1})', [i]),
+            if (next.length > 1 && next.length < all.length)
+              option('Questo e i successivi (${next.length})', next),
+            option('Tutti (${all.length})', all),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Annulla', style: AppText.ui(color: AppColors.cream)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Mostra le varianti (altri voicing) dell'accordo [i] e permette di
@@ -265,7 +334,11 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (chosen != null) {
-      setState(() => _locked[i] = List<int>.from(chosen));
+      final scope = await _askScope(i, 'Applica variante');
+      if (scope == null) return;
+      for (final j in scope) {
+        _locked[j] = List<int>.from(chosen);
+      }
       _rearrange();
     }
   }
@@ -275,7 +348,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _saveCurrentSong() async {
     if (_controller.text.trim().isEmpty) return;
     final nameCtrl = TextEditingController(
-        text: _chords.isNotEmpty ? _controller.text.trim() : '');
+        text: _currentSong ??
+            (_chords.isNotEmpty ? _controller.text.trim() : ''));
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -306,14 +380,36 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     if (name == null || name.isEmpty) return;
-    final songs = await SongLibrary.upsert(_songs, Song(name, _controller.text));
-    if (mounted) setState(() => _songs = songs);
+    // Salva anche le scelte (voicing bloccati).
+    final songs = await SongLibrary.upsert(
+        _songs,
+        Song(name, _controller.text,
+            locks: {
+              for (final e in _locked.entries) e.key: List<int>.from(e.value)
+            }));
+    _currentSong = name;
+    if (mounted) {
+      setState(() => _songs = songs);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.brass,
+        content: Text(_locked.isEmpty
+            ? 'Salvata "$name"'
+            : 'Salvata "$name" con ${_locked.length} scelte bloccate'),
+      ));
+    }
   }
 
   void _loadSong(Song s) {
     _controller.text = s.chords;
-    _locked.clear();
-    _compute();
+    _currentSong = s.name;
+    _compute(); // azzera i vincoli…
+    // …poi ripristina le scelte salvate (solo indici validi).
+    s.locks.forEach((i, v) {
+      if (i >= 0 && i < _chords.length && v.isNotEmpty) {
+        _locked[i] = List<int>.from(v);
+      }
+    });
+    if (_locked.isNotEmpty) _rearrange();
   }
 
   /// Importa da una cifra (ChordPro): incolli il testo, estrae titolo e
@@ -381,6 +477,7 @@ class _HomePageState extends State<HomePage> {
       final songs = await SongLibrary.upsert(
           _songs, Song(sheet.title!, _controller.text));
       if (mounted) setState(() => _songs = songs);
+      _currentSong = sheet.title;
       saved = 1;
     }
     if (mounted) {

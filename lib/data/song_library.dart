@@ -2,17 +2,37 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Una canzone salvata nella libreria: nome + giro di accordi (testo grezzo).
+/// Una canzone salvata nella libreria: nome, giro di accordi (testo grezzo) e
+/// le scelte fatte (voicing bloccati per posizione nel giro).
 class Song {
   final String name;
   final String chords;
 
-  const Song(this.name, this.chords);
+  /// Voicing bloccati: indice accordo nel giro → note MIDI.
+  final Map<int, List<int>> locks;
 
-  Map<String, dynamic> toJson() => {'name': name, 'chords': chords};
+  const Song(this.name, this.chords, {this.locks = const {}});
 
-  factory Song.fromJson(Map<String, dynamic> j) =>
-      Song('${j['name'] ?? ''}', '${j['chords'] ?? ''}');
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'chords': chords,
+        if (locks.isNotEmpty)
+          'locks': {for (final e in locks.entries) '${e.key}': e.value},
+      };
+
+  factory Song.fromJson(Map<String, dynamic> j) {
+    final locks = <int, List<int>>{};
+    final raw = j['locks'];
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        final i = int.tryParse('$k');
+        if (i != null && v is List) {
+          locks[i] = v.map((e) => (e as num).toInt()).toList();
+        }
+      });
+    }
+    return Song('${j['name'] ?? ''}', '${j['chords'] ?? ''}', locks: locks);
+  }
 }
 
 /// Libreria di canzoni persistente (localStorage su web, native altrove) con
