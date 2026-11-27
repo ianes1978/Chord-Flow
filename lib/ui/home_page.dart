@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
+import '../data/chord_sheet.dart';
 import '../data/song_library.dart';
 import '../data/web_file_stub.dart' if (dart.library.js_interop) '../data/web_file.dart'
     as webfile;
@@ -172,6 +173,83 @@ class _HomePageState extends State<HomePage> {
     _controller.text = s.chords;
     _locked.clear();
     _compute();
+  }
+
+  /// Importa da una cifra (ChordPro): incolli il testo, estrae titolo e
+  /// accordi, carica il giro e (se c'è un titolo) lo salva in libreria.
+  Future<void> _importChordSheet() async {
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgBottom,
+        title: Text('Importa da cifra', style: AppText.display(size: 20)),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Incolla il testo con accordi tra [ ] (es. [Dm]), direttive '
+                '{title:} e righe di soli accordi ( Dm A# A7 ).',
+                style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: ctrl,
+                maxLines: 10,
+                style: AppText.ui(size: 13, color: AppColors.cream),
+                decoration: const InputDecoration(
+                  hintText: '{title: ...}\n[Dm]testo [A#]...',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Annulla', style: AppText.ui(color: AppColors.cream))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.brass),
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: Text('Importa',
+                style: AppText.ui(
+                    weight: FontWeight.w700, color: AppColors.bgBottom)),
+          ),
+        ],
+      ),
+    );
+    if (text == null || text.trim().isEmpty) return;
+
+    final sheet = parseChordSheet(text);
+    if (sheet.chords.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Nessun accordo riconosciuto nel testo')));
+      }
+      return;
+    }
+    _controller.text = sheet.chords.join(' ');
+    _locked.clear();
+    _compute();
+
+    var saved = 0;
+    if (sheet.title != null && sheet.title!.isNotEmpty) {
+      final songs = await SongLibrary.upsert(
+          _songs, Song(sheet.title!, _controller.text));
+      if (mounted) setState(() => _songs = songs);
+      saved = 1;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.brass,
+        content: Text(saved > 0
+            ? 'Importata "${sheet.title}" · ${sheet.chords.length} accordi'
+            : 'Importati ${sheet.chords.length} accordi'),
+      ));
+    }
   }
 
   Future<void> _deleteSong(Song s) async {
@@ -678,6 +756,8 @@ class _HomePageState extends State<HomePage> {
                       weight: FontWeight.w700,
                       color: AppColors.brass)),
               _libBtn(Icons.bookmark_add_outlined, 'Salva', _saveCurrentSong),
+              _libBtn(Icons.lyrics_outlined, 'Importa cifra',
+                  _importChordSheet),
               _libBtn(Icons.download_outlined, 'Esporta / Backup',
                   _exportLibrary),
               _libBtn(Icons.upload_outlined, 'Importa / Ripristina',
