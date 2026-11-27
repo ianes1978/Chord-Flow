@@ -2,7 +2,7 @@ name: chord_flow
 description: "Chord Flow — voicing e rivolti per fisarmonica con la mano ferma."
 publish_to: 'none'
 
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: ^3.5.4
