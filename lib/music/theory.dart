@@ -73,13 +73,30 @@ class KeyboardPreset {
   const KeyboardPreset(this.id, this.label, [this.low, this.high]);
 }
 
-/// Preset disponibili. La FR-1x ha 26 tasti di cui 16 bianchi: le sole
-/// estensioni da 26 tasti con 16 bianchi sono Mi–Fa e Si–Do.
+/// Preset disponibili. Roland FR-1x: 16 tasti bianchi a partire dal La
+/// (A3–B5). "Personalizzata" usa primo tasto bianco + numero di bianchi.
 const List<KeyboardPreset> keyboardPresets = [
   KeyboardPreset('free', 'Libera (C3–C6)'),
-  KeyboardPreset('fr1x_ef', 'Roland FR-1x · 26 tasti (16 bianchi) E3–F5', 52, 77),
-  KeyboardPreset('fr1x_bc', 'Roland FR-1x · 26 tasti (16 bianchi) B2–C5', 47, 72),
+  KeyboardPreset('fr1x', 'Roland FR-1x · 16 tasti bianchi dal La (A3–B5)', 57, 83),
+  KeyboardPreset('custom', 'Personalizzata'),
 ];
+
+const Set<int> _whitePcs = {0, 2, 4, 5, 7, 9, 11};
+
+/// true se la nota MIDI è un tasto bianco.
+bool isWhiteKey(int midi) => _whitePcs.contains(midi % 12);
+
+/// Nota più alta di una tastiera che parte da [low] (bianco) e ha [whites]
+/// tasti bianchi.
+int highFromWhites(int low, int whites) {
+  var m = low;
+  var count = 1;
+  while (count < whites) {
+    m++;
+    if (isWhiteKey(m)) count++;
+  }
+  return m;
+}
 
 /// Range della tastiera disegnata (default C3 .. C6). Modificabile con
 /// [setKeyboardRange] per limitare disegno e ricerca a uno strumento reale.

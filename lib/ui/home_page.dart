@@ -45,6 +45,8 @@ class _HomePageState extends State<HomePage> {
   bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
   String? _stradFilter; // accordo filtrato nel pannello Stradella (null = tutti)
   String _kbPreset = 'free'; // estensione tastiera destra (preset)
+  int _customLow = 57; // tastiera personalizzata: primo tasto bianco (MIDI)
+  int _customWhites = 16; // tastiera personalizzata: numero di tasti bianchi
   static const _kbPrefKey = 'chordflow.keyboard.v1';
   List<Song> _songs = []; // libreria canzoni salvate
 
@@ -58,8 +60,15 @@ class _HomePageState extends State<HomePage> {
     });
     // Ripristina la tastiera scelta (es. Roland FR-1x).
     SharedPreferences.getInstance().then((p) {
-      final id = p.getString(_kbPrefKey);
-      if (id != null && id != _kbPreset && mounted) _applyKeyboard(id);
+      final saved = p.getString(_kbPrefKey);
+      if (saved == null || !mounted) return;
+      // Formato: "<id>" oppure "custom:<low>:<whites>".
+      final parts = saved.split(':');
+      if (parts.first == 'custom' && parts.length == 3) {
+        _customLow = int.tryParse(parts[1]) ?? _customLow;
+        _customWhites = int.tryParse(parts[2]) ?? _customWhites;
+      }
+      _applyKeyboard(parts.first);
     }).catchError((_) {});
   }
 
@@ -68,15 +77,83 @@ class _HomePageState extends State<HomePage> {
   void _applyKeyboard(String id, {bool persist = false}) {
     final preset = keyboardPresets.firstWhere((k) => k.id == id,
         orElse: () => keyboardPresets.first);
-    setKeyboardRange(preset.low, preset.high);
+    if (preset.id == 'custom') {
+      setKeyboardRange(
+          _customLow, highFromWhites(_customLow, _customWhites));
+    } else {
+      setKeyboardRange(preset.low, preset.high);
+    }
     _kbPreset = preset.id;
     _locked.clear(); // i voicing bloccati potrebbero uscire dai tasti
     _rearrange();
     if (persist) {
+      final value = preset.id == 'custom'
+          ? 'custom:$_customLow:$_customWhites'
+          : preset.id;
       SharedPreferences.getInstance()
-          .then((p) => p.setString(_kbPrefKey, preset.id))
+          .then((p) => p.setString(_kbPrefKey, value))
           .catchError((_) => false);
     }
+  }
+
+  /// Controlli della tastiera personalizzata: primo tasto bianco (nota +
+  /// ottava) e numero di tasti bianchi.
+  Widget _customKeyboardControls() {
+    final names = _useLetters ? noteNames : noteNamesIt;
+    // Tasti bianchi selezionabili come primo tasto: da C2 a B4.
+    final whiteStarts = [
+      for (int m = 36; m <= 71; m++)
+        if (isWhiteKey(m)) m,
+    ];
+    final high = highFromWhites(_customLow, _customWhites);
+    String label(int m) => '${names[m % 12]}${m ~/ 12 - 1}';
+
+    Widget dropdown<T>(T value, List<T> items, String Function(T) text,
+        ValueChanged<T> onChanged) {
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isDense: true,
+          dropdownColor: AppColors.bgBottom,
+          style: AppText.ui(size: 13, color: AppColors.cream),
+          items: [
+            for (final i in items)
+              DropdownMenuItem(value: i, child: Text(text(i))),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 26, top: 4, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('Primo tasto bianco: ',
+                style: AppText.ui(size: 12, color: const Color(0xCCF2E7D6))),
+            dropdown<int>(_customLow, whiteStarts, label, (v) {
+              _customLow = v;
+              _applyKeyboard('custom', persist: true);
+            }),
+          ]),
+          Row(children: [
+            Text('Tasti bianchi: ',
+                style: AppText.ui(size: 12, color: const Color(0xCCF2E7D6))),
+            dropdown<int>(_customWhites, [for (int i = 8; i <= 30; i++) i],
+                (i) => '$i', (v) {
+              _customWhites = v;
+              _applyKeyboard('custom', persist: true);
+            }),
+          ]),
+          Text('Estensione: ${label(_customLow)} – ${label(high)}',
+              style: AppText.ui(size: 12, color: AppColors.brass)),
+        ],
+      ),
+    );
   }
 
   /// Selettore della tastiera (manuale destro) nel pannello opzioni.
@@ -113,6 +190,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
+        if (_kbPreset == 'custom') _customKeyboardControls(),
       ],
     );
   }
