@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sfondo bordeaux dell'icona adattiva (gradiente radiale come nell'app). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="80dp"
+        android:centerX="0.5"
+        android:centerY="0.38"
+        android:startColor="#7A2122"
+        android:centerColor="#5A1718"
+        android:endColor="#3A0C0D"/>
+</shape>
