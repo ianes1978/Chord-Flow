@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import '../music/stradella.dart';
+import '../music/theory.dart';
 import 'theme.dart';
 
 /// Disegna una porzione della tastiera dei **bassi Stradella** (come sulla
@@ -13,7 +14,12 @@ class StradellaPainter extends CustomPainter {
   final List<StradellaHint> hints;
   final bool useLetters;
 
-  StradellaPainter(this.hints, {required this.useLetters});
+  /// Vista triangolo: evidenzia, per ogni accordo, il triangolo
+  /// basso · quinta · accordo (es. per D: D3 · A3 · DM).
+  final bool triangle;
+
+  StradellaPainter(this.hints,
+      {required this.useLetters, this.triangle = false});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -89,11 +95,48 @@ class StradellaPainter extends CustomPainter {
     }
 
     // --- Pulsanti da premere ---
+    final names = useLetters ? noteNames : noteNamesIt;
     for (int i = 0; i < hints.length; i++) {
       final h = hints[i];
       final f = stradellaFifths(h.rootPc);
       final bassC = Offset(cx(f, StradRow.bass.index), cy(StradRow.bass.index));
       final chordC = Offset(cx(f, h.row.index), cy(h.row.index));
+
+      if (triangle) {
+        // Vertici: basso fondamentale, quinta (basso), accordo.
+        final fifthPc = (h.rootPc + 7) % 12;
+        final ff = stradellaFifths(fifthPc);
+        final fifthC =
+            Offset(cx(ff, StradRow.bass.index), cy(StradRow.bass.index));
+        final rowGlyph = stradRowShort[h.row.index];
+
+        // Triangolo (riempito tenue + contorno).
+        final path = Path()
+          ..moveTo(bassC.dx, bassC.dy)
+          ..lineTo(fifthC.dx, fifthC.dy)
+          ..lineTo(chordC.dx, chordC.dy)
+          ..close();
+        canvas.drawPath(path, Paint()..color = const Color(0x22C9A24B));
+        canvas.drawPath(
+            path,
+            Paint()
+              ..color = AppColors.brass
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2);
+
+        // Vertici con etichetta reale.
+        _vertex(canvas, bassC, radius, AppColors.stayGradient,
+            names[h.rootPc % 12], AppColors.blackKey);
+        _vertex(canvas, fifthC, radius, AppColors.stayGradient,
+            names[fifthPc % 12], AppColors.blackKey);
+        final chordGrad =
+            h.exact ? AppColors.stayGradient : AppColors.moveGradient;
+        _vertex(canvas, chordC, radius, chordGrad,
+            '${names[h.rootPc % 12]}$rowGlyph',
+            h.exact ? AppColors.blackKey : Colors.white);
+        continue;
+      }
+
       final cbC = Offset(
           cx(f, StradRow.counterbass.index), cy(StradRow.counterbass.index));
 
@@ -129,6 +172,22 @@ class StradellaPainter extends CustomPainter {
               ..strokeWidth = 2);
       }
     }
+  }
+
+  /// Vertice del triangolo: bottone evidenziato con etichetta (nota/accordo).
+  void _vertex(Canvas canvas, Offset c, double radius, Gradient grad,
+      String label, Color textColor) {
+    canvas.drawCircle(
+        c,
+        radius,
+        Paint()
+          ..shader =
+              grad.createShader(Rect.fromCircle(center: c, radius: radius)));
+    _text(canvas, label, c,
+        size: (radius * 0.72).clamp(8.0, 12.0),
+        color: textColor,
+        center: true,
+        bold: true);
   }
 
   void _button(Canvas canvas, Offset c, double radius, Gradient grad,

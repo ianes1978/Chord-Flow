@@ -35,6 +35,7 @@ class _HomePageState extends State<HomePage> {
   bool _buttons = false; // true = bottoniera fisarmonica, false = pianoforte
   bool _stradella = false; // true = mostra i bassi Stradella (mano sinistra)
   int _rhythm = 0; // indice del ritmo selezionato
+  bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
 
   @override
   void initState() {
@@ -465,10 +466,29 @@ class _HomePageState extends State<HomePage> {
           Text('Bassi Stradella · mano sinistra',
               style: AppText.display(size: 20)),
           const SizedBox(height: 2),
+          Row(
+            children: [
+              Text('Vista triangolo (basso · quinta · accordo)',
+                  style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+              const SizedBox(width: 4),
+              Switch(
+                value: _triangle,
+                onChanged: (v) => setState(() => _triangle = v),
+                activeColor: AppColors.brass,
+                activeTrackColor: const Color(0x55C9A24B),
+                inactiveThumbColor: AppColors.brass,
+                inactiveTrackColor: const Color(0x33C9A24B),
+              ),
+            ],
+          ),
           Text(
-            'Disposizione reale (file in diagonale). Cerchi col pallino = '
-            'bassi di riferimento (Do, Mi, La♭). Numero = ordine nel giro; '
-            'arancio = accordo approssimato.',
+            _triangle
+                ? 'Triangolo basso · quinta · accordo per ogni accordo '
+                    '(es. D: D3 · A3 · DM). File in diagonale; pallino = bassi '
+                    'di riferimento (Do, Mi, La♭).'
+                : 'Disposizione reale (file in diagonale). Cerchi col pallino = '
+                    'bassi di riferimento (Do, Mi, La♭). Numero = ordine nel '
+                    'giro; arancio = accordo approssimato.',
             style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
           ),
           const SizedBox(height: 12),
@@ -480,7 +500,8 @@ class _HomePageState extends State<HomePage> {
                 height: 184,
                 width: w,
                 child: CustomPaint(
-                  painter: StradellaPainter(hints, useLetters: _useLetters),
+                  painter: StradellaPainter(hints,
+                      useLetters: _useLetters, triangle: _triangle),
                 ),
               );
               return c.maxWidth < 600.0
