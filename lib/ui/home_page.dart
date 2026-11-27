@@ -42,6 +42,7 @@ class _HomePageState extends State<HomePage> {
   bool _stradella = false; // true = mostra i bassi Stradella (mano sinistra)
   int _rhythm = 0; // indice del ritmo selezionato
   bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
+  String? _stradFilter; // accordo filtrato nel pannello Stradella (null = tutti)
   List<Song> _songs = []; // libreria canzoni salvate
 
   @override
@@ -830,11 +831,49 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Chip del filtro accordi nel pannello Stradella.
+  Widget _filterChip(String label, bool selected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.brass : const Color(0x14F2E7D6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: selected ? AppColors.brass : const Color(0x44C9A24B)),
+        ),
+        child: Text(label,
+            style: AppText.ui(
+                size: 13,
+                weight: FontWeight.w700,
+                color: selected ? AppColors.bgBottom : AppColors.cream)),
+      ),
+    );
+  }
+
   /// Pannello dei bassi Stradella: tastiera a pulsanti col giro evidenziato,
   /// più la guida di accompagnamento.
   Widget _stradellaPanel() {
-    final hints = _chords.map(stradellaFor).toList();
+    final allHints = _chords.map(stradellaFor).toList();
     final names = _useLetters ? noteNames : noteNamesIt;
+
+    // Accordi distinti (in ordine di comparsa) per il filtro.
+    final symbols = <String>[];
+    for (final h in allHints) {
+      if (!symbols.contains(h.symbol)) symbols.add(h.symbol);
+    }
+    final filter =
+        (_stradFilter != null && symbols.contains(_stradFilter)) ? _stradFilter : null;
+    final hints = filter == null
+        ? allHints
+        : allHints.where((h) => h.symbol == filter).toList();
+    // Nella guida ogni accordo compare una sola volta.
+    final guideHints = <StradellaHint>[];
+    for (final h in hints) {
+      if (!guideHints.any((g) => g.symbol == h.symbol)) guideHints.add(h);
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -848,7 +887,20 @@ class _HomePageState extends State<HomePage> {
         children: [
           Text('Bassi Stradella · mano sinistra',
               style: AppText.display(size: 20)),
-          const SizedBox(height: 2),
+          const SizedBox(height: 8),
+          // Filtro accordi: tutti insieme oppure uno alla volta.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _filterChip('Tutti', filter == null,
+                  () => setState(() => _stradFilter = null)),
+              for (final s in symbols)
+                _filterChip(s, filter == s,
+                    () => setState(() => _stradFilter = s)),
+            ],
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Text('Vista triangolo (basso · quinta · accordo)',
@@ -896,7 +948,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 14),
           _rhythmSection(),
           const SizedBox(height: 16),
-          _accompanimentGuide(hints, rhythms[_rhythm], names),
+          _accompanimentGuide(guideHints, rhythms[_rhythm], names),
         ],
       ),
     );
