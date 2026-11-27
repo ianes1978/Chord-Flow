@@ -110,13 +110,12 @@ class StradellaPainter extends CustomPainter {
             Offset(cx(ff, StradRow.bass.index), cy(StradRow.bass.index));
         final rowGlyph = stradRowShort[h.row.index];
 
-        // Triangolo (riempito tenue + contorno).
+        // Triangolo: solo il contorno, senza riempimento.
         final path = Path()
           ..moveTo(bassC.dx, bassC.dy)
           ..lineTo(fifthC.dx, fifthC.dy)
           ..lineTo(chordC.dx, chordC.dy)
           ..close();
-        canvas.drawPath(path, Paint()..color = const Color(0x22C9A24B));
         canvas.drawPath(
             path,
             Paint()
@@ -320,7 +319,6 @@ class MiniStradellaPainter extends CustomPainter {
         ..lineTo(fifthC.dx, fifthC.dy)
         ..lineTo(chordC.dx, chordC.dy)
         ..close();
-      canvas.drawPath(path, Paint()..color = const Color(0x22C9A24B));
       canvas.drawPath(
           path,
           Paint()
