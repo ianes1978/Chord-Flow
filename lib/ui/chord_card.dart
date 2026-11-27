@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../music/stradella.dart';
 import '../music/theory.dart';
 import '../music/voicing.dart';
 import 'keyboard_painter.dart';
@@ -15,6 +16,7 @@ class ChordCard extends StatelessWidget {
   final bool compact; // true = vista compatta (dimensioni ridotte)
   final bool buttons; // true = bottoniera fisarmonica, false = pianoforte
   final bool locked; // true = voicing bloccato (vincolo per l'ottimizzatore)
+  final StradellaHint? strad; // suggerimento bassi sinistra (se attivo)
   final VoidCallback onTap;
   final VoidCallback onToggleLock;
   final VoidCallback onShowAlternatives;
@@ -29,6 +31,7 @@ class ChordCard extends StatelessWidget {
     required this.compact,
     required this.buttons,
     required this.locked,
+    required this.strad,
     required this.onTap,
     required this.onToggleLock,
     required this.onShowAlternatives,
@@ -109,8 +112,60 @@ class ChordCard extends StatelessWidget {
               style: AppText.ui(
                   size: compact ? 11 : 13, color: const Color(0xFFE9D8BE)),
             ),
+            if (strad != null) ...[
+              SizedBox(height: compact ? 4 : 6),
+              _stradLine(),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Riga compatta coi bassi Stradella (mano sinistra) per questo accordo.
+  Widget _stradLine() {
+    final s = strad!;
+    final names = useLetters ? noteNames : noteNamesIt;
+    final rowGlyph = stradRowShort[s.row.index]; // M / m / 7 / °
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0x14C9A24B),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x33C9A24B)),
+      ),
+      child: RichText(
+        text: TextSpan(children: [
+          TextSpan(
+            text: '🎛 Sinistra:  ',
+            style: AppText.ui(
+                size: compact ? 11 : 12, color: const Color(0x99F2E7D6)),
+          ),
+          TextSpan(
+            text: '${names[s.rootPc % 12]} basso',
+            style: AppText.ui(
+                size: compact ? 12 : 13,
+                weight: FontWeight.w700,
+                color: AppColors.brass),
+          ),
+          TextSpan(
+            text: '  +  ',
+            style: AppText.ui(
+                size: compact ? 11 : 12, color: const Color(0x99F2E7D6)),
+          ),
+          TextSpan(
+            text: '${names[s.rootPc % 12]} $rowGlyph',
+            style: AppText.ui(
+                size: compact ? 12 : 13,
+                weight: FontWeight.w700,
+                color: s.exact ? AppColors.brass : AppColors.moveA),
+          ),
+          if (!s.exact)
+            TextSpan(
+              text: '  ≈',
+              style: AppText.ui(size: compact ? 11 : 12, color: AppColors.moveA),
+            ),
+        ]),
       ),
     );
   }

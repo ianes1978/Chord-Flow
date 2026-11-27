@@ -729,6 +729,7 @@ class _HomePageState extends State<HomePage> {
           compact: cardsCompact,
           buttons: _buttons,
           locked: _locked.containsKey(i),
+          strad: _stradella ? stradellaFor(_chords[i]) : null,
           onTap: () => _playOne(i),
           onToggleLock: () => _toggleLock(i),
           onShowAlternatives: () => _showAlternatives(i),
