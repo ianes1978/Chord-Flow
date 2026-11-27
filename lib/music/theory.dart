@@ -63,16 +63,53 @@ const List<String> invNames = [
   'fondamentale', '1º rivolto', '2º rivolto', '3º rivolto',
 ];
 
-/// Range della tastiera disegnata: C3 .. C6.
-const int kLow = 48;
-const int kHigh = 84;
+/// Una tastiera (manuale destro) selezionabile: estensione reale dei tasti.
+/// Se [low]/[high] sono null si usa la finestra libera C3–C6.
+class KeyboardPreset {
+  final String id;
+  final String label;
+  final int? low;
+  final int? high;
+  const KeyboardPreset(this.id, this.label, [this.low, this.high]);
+}
+
+/// Preset disponibili. La FR-1x ha 26 tasti di cui 16 bianchi: le sole
+/// estensioni da 26 tasti con 16 bianchi sono Mi–Fa e Si–Do.
+const List<KeyboardPreset> keyboardPresets = [
+  KeyboardPreset('free', 'Libera (C3–C6)'),
+  KeyboardPreset('fr1x_ef', 'Roland FR-1x · 26 tasti (16 bianchi) E3–F5', 52, 77),
+  KeyboardPreset('fr1x_bc', 'Roland FR-1x · 26 tasti (16 bianchi) B2–C5', 47, 72),
+];
+
+/// Range della tastiera disegnata (default C3 .. C6). Modificabile con
+/// [setKeyboardRange] per limitare disegno e ricerca a uno strumento reale.
+int kLow = 48;
+int kHigh = 84;
 
 /// Range di ricerca dei bassi del voicing.
-const int kSearchLo = 52;
-const int kSearchHi = 81;
+int kSearchLo = 52;
+int kSearchHi = 81;
 
 /// Centro comodo della mano destra.
-const int kTarget = 64;
+int kTarget = 64;
+
+/// Imposta l'estensione della tastiera. Con [low]/[high] null torna alla
+/// finestra libera; altrimenti disegno e voicing restano dentro i tasti reali.
+void setKeyboardRange(int? low, int? high) {
+  if (low == null || high == null) {
+    kLow = 48;
+    kHigh = 84;
+    kSearchLo = 52;
+    kSearchHi = 81;
+    kTarget = 64;
+  } else {
+    kLow = low;
+    kHigh = high;
+    kSearchLo = low;
+    kSearchHi = high;
+    kTarget = (low + high) ~/ 2;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Parsing della sigla

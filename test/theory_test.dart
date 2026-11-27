@@ -175,6 +175,25 @@ void main() {
     });
   });
 
+  group('tastiera Roland FR-1x (26 tasti, E3–F5)', () {
+    tearDown(() => setKeyboardRange(null, null));
+
+    test('tutti i voicing restano dentro i tasti reali', () {
+      setKeyboardRange(52, 77);
+      final chords = parseProgression('D A Bm G Dmaj7 G7 Csus4 F#m')
+          .map((r) => r.chord!)
+          .toList();
+      for (final v in optimize(chords)) {
+        expect(v.first, greaterThanOrEqualTo(52));
+        expect(v.last, lessThanOrEqualTo(77));
+      }
+      for (final v in optimize(chords, buttons: true)) {
+        expect(v.first, greaterThanOrEqualTo(52));
+        expect(v.last, lessThanOrEqualTo(77));
+      }
+    });
+  });
+
   group('fingersFor', () {
     test('mappa il numero di voci alle dita', () {
       expect(fingersFor(2), [1, 5]);

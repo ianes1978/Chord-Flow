@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/synth.dart';
 import '../data/chord_sheet.dart';
@@ -43,6 +44,8 @@ class _HomePageState extends State<HomePage> {
   int _rhythm = 0; // indice del ritmo selezionato
   bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
   String? _stradFilter; // accordo filtrato nel pannello Stradella (null = tutti)
+  String _kbPreset = 'free'; // estensione tastiera destra (preset)
+  static const _kbPrefKey = 'chordflow.keyboard.v1';
   List<Song> _songs = []; // libreria canzoni salvate
 
   @override
@@ -53,6 +56,65 @@ class _HomePageState extends State<HomePage> {
     SongLibrary.load().then((s) {
       if (mounted) setState(() => _songs = s);
     });
+    // Ripristina la tastiera scelta (es. Roland FR-1x).
+    SharedPreferences.getInstance().then((p) {
+      final id = p.getString(_kbPrefKey);
+      if (id != null && id != _kbPreset && mounted) _applyKeyboard(id);
+    }).catchError((_) {});
+  }
+
+  /// Applica un preset di tastiera: limita disegno e ricerca dei voicing ai
+  /// tasti reali dello strumento e ricalcola.
+  void _applyKeyboard(String id, {bool persist = false}) {
+    final preset = keyboardPresets.firstWhere((k) => k.id == id,
+        orElse: () => keyboardPresets.first);
+    setKeyboardRange(preset.low, preset.high);
+    _kbPreset = preset.id;
+    _locked.clear(); // i voicing bloccati potrebbero uscire dai tasti
+    _rearrange();
+    if (persist) {
+      SharedPreferences.getInstance()
+          .then((p) => p.setString(_kbPrefKey, preset.id))
+          .catchError((_) => false);
+    }
+  }
+
+  /// Selettore della tastiera (manuale destro) nel pannello opzioni.
+  Widget _keyboardRangeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tasti dello strumento',
+            style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        const SizedBox(height: 6),
+        for (final k in keyboardPresets)
+          InkWell(
+            onTap: () => _applyKeyboard(k.id, persist: true),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    _kbPreset == k.id
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: 18,
+                    color: _kbPreset == k.id
+                        ? AppColors.brass
+                        : const Color(0x88F2E7D6),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(k.label,
+                        style: AppText.ui(size: 13, color: AppColors.cream)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -534,6 +596,8 @@ class _HomePageState extends State<HomePage> {
               _compactToggle(),
               const SizedBox(height: 6),
               _stradellaToggle(),
+              const SizedBox(height: 14),
+              _keyboardRangeSelector(),
               const SizedBox(height: 20),
               Text('LIBRERIA & BACKUP',
                   style: AppText.ui(

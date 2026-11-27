@@ -154,7 +154,7 @@ class AccordionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const maxCol = (kHigh - kLow) / 3.0; // ~12 colonne per fila
+    final maxCol = (kHigh - kLow) / 3.0; // colonne per fila
     final unit = size.width / (maxCol + 1.6);
     final rowGap = size.height / 3;
     final radius = math.min(unit * 0.42, rowGap * 0.42);
