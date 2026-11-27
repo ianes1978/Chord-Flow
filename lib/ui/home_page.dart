@@ -466,23 +466,24 @@ class _HomePageState extends State<HomePage> {
               style: AppText.display(size: 20)),
           const SizedBox(height: 2),
           Text(
-            'File: 3ª (contrabbasso) · B (basso) · M · m · 7 · ° . '
-            'Numero = ordine nel giro; arancio = accordo approssimato.',
+            'Disposizione reale (file in diagonale). Cerchi col pallino = '
+            'bassi di riferimento (Do, Mi, La♭). Numero = ordine nel giro; '
+            'arancio = accordo approssimato.',
             style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
           ),
           const SizedBox(height: 12),
           // Board completa FR-1x (12 colonne): scroll orizzontale se stretta.
           LayoutBuilder(
             builder: (context, c) {
-              final w = c.maxWidth < 560.0 ? 560.0 : c.maxWidth;
+              final w = c.maxWidth < 600.0 ? 600.0 : c.maxWidth;
               final board = SizedBox(
-                height: 180,
+                height: 184,
                 width: w,
                 child: CustomPaint(
                   painter: StradellaPainter(hints, useLetters: _useLetters),
                 ),
               );
-              return c.maxWidth < 560.0
+              return c.maxWidth < 600.0
                   ? SingleChildScrollView(
                       scrollDirection: Axis.horizontal, child: board)
                   : board;

@@ -17,7 +17,8 @@ class StradellaPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Board completa della FR-1x: 12 colonne (C♯..F♯) per 6 file.
+    // Board completa della FR-1x: 12 colonne (C♯..F♯) per 6 file, disposte in
+    // diagonale (file traslate) come sullo strumento reale.
     const minF = stradMinFifths;
     const maxF = stradMaxFifths;
     const nCols = maxF - minF + 1;
@@ -25,32 +26,48 @@ class StradellaPainter extends CustomPainter {
     const rows = 6; // counterbass, bass, major, minor, seventh, diminished
     const labelW = 24.0; // etichette file a sinistra
     const colLabelH = 16.0; // nomi radici in basso
+    const slant = 0.42; // traslazione orizzontale per fila (in colonne)
 
-    final boardW = size.width - labelW;
     final boardH = size.height - colLabelH;
-    final colW = boardW / nCols;
+    final colW =
+        (size.width - labelW) / (nCols + (rows - 1) * slant + 0.6);
     final rowH = boardH / rows;
     final radius = math.min(colW, rowH) * 0.4;
 
-    double cx(int f) => labelW + (f - minF + 0.5) * colW;
+    // Le file più in basso sono traslate a sinistra (board a parallelogramma).
+    double cx(int f, int row) =>
+        labelW + (0.3 + (f - minF + 0.5) + (rows - 1 - row) * slant) * colW;
     double cy(int row) => (row + 0.5) * rowH;
 
     final colLabels = useLetters ? stradColLabels : stradColLabelsIt;
-
-    // Colonne usate dal giro (per i nomi in grassetto).
     final usedCols = <int>{for (final h in hints) stradellaFifths(h.rootPc)};
 
-    // --- Griglia di base (bottoni spenti) ---
+    // Pulsanti di riferimento (col pallino tattile sullo strumento): Do, Mi, La♭.
+    const refPcs = {0, 4, 8};
+
     final basePaint = Paint()..color = const Color(0x22F2E7D6);
     final baseOutline = Paint()
       ..color = const Color(0x33F2E7D6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
+
+    // --- Griglia di base (bottoni spenti) + marcatori di riferimento ---
     for (int f = minF; f <= maxF; f++) {
+      final pc = pcFromFifths(f);
       for (int r = 0; r < rows; r++) {
-        final c = Offset(cx(f), cy(r));
+        final c = Offset(cx(f, r), cy(r));
         canvas.drawCircle(c, radius, basePaint);
         canvas.drawCircle(c, radius, baseOutline);
+        // Riferimento sui bassi fondamentali Do/Mi/La♭.
+        if (r == StradRow.bass.index && refPcs.contains(pc)) {
+          canvas.drawCircle(c, radius + 1.5,
+              Paint()
+                ..color = AppColors.cream
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1.5);
+          canvas.drawCircle(
+              c, radius * 0.3, Paint()..color = AppColors.cream);
+        }
       }
     }
 
@@ -60,10 +77,11 @@ class StradellaPainter extends CustomPainter {
           size: 10, color: const Color(0xAAF2E7D6), center: true);
     }
 
-    // --- Nomi radici (in basso) ---
+    // --- Nomi radici (in basso, allineati alla fila più bassa) ---
     for (int f = minF; f <= maxF; f++) {
       final used = usedCols.contains(f);
-      _text(canvas, colLabels[f + 5], Offset(cx(f), boardH + colLabelH / 2),
+      _text(canvas, colLabels[f + 5],
+          Offset(cx(f, rows - 1), boardH + colLabelH / 2),
           size: 10,
           color: used ? AppColors.brass : const Color(0x66F2E7D6),
           center: true,
@@ -74,11 +92,12 @@ class StradellaPainter extends CustomPainter {
     for (int i = 0; i < hints.length; i++) {
       final h = hints[i];
       final f = stradellaFifths(h.rootPc);
-      final bassC = Offset(cx(f), cy(StradRow.bass.index));
-      final chordC = Offset(cx(f), cy(h.row.index));
-      final cbC = Offset(cx(f), cy(StradRow.counterbass.index));
+      final bassC = Offset(cx(f, StradRow.bass.index), cy(StradRow.bass.index));
+      final chordC = Offset(cx(f, h.row.index), cy(h.row.index));
+      final cbC = Offset(
+          cx(f, StradRow.counterbass.index), cy(StradRow.counterbass.index));
 
-      // Connettore basso ↔ accordo.
+      // Connettore basso ↔ accordo (diagonale, come la mano).
       canvas.drawLine(
           bassC,
           chordC,
