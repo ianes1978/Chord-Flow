@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
+import '../data/song_library.dart';
+import '../data/web_file_stub.dart' if (dart.library.js_interop) '../data/web_file.dart'
+    as webfile;
 import '../models/chord.dart';
 import '../music/arranger.dart';
 import '../music/rhythm.dart';
@@ -36,12 +40,16 @@ class _HomePageState extends State<HomePage> {
   bool _stradella = false; // true = mostra i bassi Stradella (mano sinistra)
   int _rhythm = 0; // indice del ritmo selezionato
   bool _triangle = false; // vista triangolo (basso·quinta·accordo) sulla board
+  List<Song> _songs = []; // libreria canzoni salvate
 
   @override
   void initState() {
     super.initState();
     _synth.init();
     _compute(); // calcola subito sul valore iniziale
+    SongLibrary.load().then((s) {
+      if (mounted) setState(() => _songs = s);
+    });
   }
 
   @override
@@ -119,6 +127,146 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ----------------------- Libreria canzoni -----------------------
+
+  Future<void> _saveCurrentSong() async {
+    if (_controller.text.trim().isEmpty) return;
+    final nameCtrl = TextEditingController(
+        text: _chords.isNotEmpty ? _controller.text.trim() : '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgBottom,
+        title: Text('Salva canzone', style: AppText.display(size: 20)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: AppText.ui(size: 16, color: AppColors.cream),
+          decoration: InputDecoration(
+            hintText: 'Nome della canzone',
+            hintStyle: AppText.ui(size: 15, color: const Color(0x66F2E7D6)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Annulla', style: AppText.ui(color: AppColors.cream)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.brass),
+            onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
+            child: Text('Salva',
+                style: AppText.ui(
+                    weight: FontWeight.w700, color: AppColors.bgBottom)),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    final songs = await SongLibrary.upsert(_songs, Song(name, _controller.text));
+    if (mounted) setState(() => _songs = songs);
+  }
+
+  void _loadSong(Song s) {
+    _controller.text = s.chords;
+    _locked.clear();
+    _compute();
+  }
+
+  Future<void> _deleteSong(Song s) async {
+    final songs = await SongLibrary.remove(_songs, s.name);
+    if (mounted) setState(() => _songs = songs);
+  }
+
+  Future<void> _exportLibrary() async {
+    final text = SongLibrary.exportJson(_songs);
+    if (webfile.fileSupported) {
+      webfile.downloadText('chord-flow-backup.json', text);
+      return;
+    }
+    // Mobile/desktop: mostra il JSON da copiare.
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgBottom,
+        title: Text('Backup (copia il testo)',
+            style: AppText.display(size: 18)),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: SelectableText(text,
+                style: AppText.ui(size: 12, color: AppColors.cream)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: text));
+              Navigator.pop(ctx);
+            },
+            child: Text('Copia', style: AppText.ui(color: AppColors.brass)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importLibrary() async {
+    String? text;
+    if (webfile.fileSupported) {
+      text = await webfile.pickTextFile();
+    } else {
+      final ctrl = TextEditingController();
+      if (!mounted) return;
+      text = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.bgBottom,
+          title: Text('Ripristina (incolla il backup)',
+              style: AppText.display(size: 18)),
+          content: TextField(
+            controller: ctrl,
+            maxLines: 8,
+            style: AppText.ui(size: 12, color: AppColors.cream),
+            decoration: const InputDecoration(hintText: '{ ... }'),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child:
+                    Text('Annulla', style: AppText.ui(color: AppColors.cream))),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.brass),
+              onPressed: () => Navigator.pop(ctx, ctrl.text),
+              child: Text('Importa',
+                  style: AppText.ui(
+                      weight: FontWeight.w700, color: AppColors.bgBottom)),
+            ),
+          ],
+        ),
+      );
+    }
+    if (text == null || text.trim().isEmpty) return;
+    try {
+      final imported = SongLibrary.parseImport(text);
+      final songs = await SongLibrary.mergeImport(_songs, imported);
+      if (mounted) {
+        setState(() => _songs = songs);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Importate ${imported.length} canzoni'),
+          backgroundColor: AppColors.brass,
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('File di backup non valido'),
+        ));
+      }
+    }
+  }
+
   Future<void> _playAll() async {
     if (_playing || _voiced.isEmpty) return;
     setState(() => _playing = true);
@@ -167,6 +315,8 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 10),
                           _unknownBanner(),
                         ],
+                        const SizedBox(height: 14),
+                        _libraryBar(),
                         const SizedBox(height: 22),
                         _grid(twoCols),
                         if (_stradella && _chords.isNotEmpty) ...[
@@ -447,8 +597,103 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Barra della libreria: salva/esporta/importa e chip delle canzoni salvate.
+  Widget _libraryBar() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0x0DF2E7D6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x22C9A24B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('Libreria',
+                  style: AppText.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.brass)),
+              _libBtn(Icons.bookmark_add_outlined, 'Salva', _saveCurrentSong),
+              _libBtn(Icons.download_outlined, 'Esporta / Backup',
+                  _exportLibrary),
+              _libBtn(Icons.upload_outlined, 'Importa / Ripristina',
+                  _importLibrary),
+              if (_songs.isEmpty)
+                Text('nessuna canzone salvata',
+                    style:
+                        AppText.ui(size: 12, color: const Color(0x88F2E7D6))),
+            ],
+          ),
+          if (_songs.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [for (final s in _songs) _songChip(s)],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _libBtn(IconData icon, String label, VoidCallback onTap) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 17, color: AppColors.cream),
+      label: Text(label, style: AppText.ui(size: 13, color: AppColors.cream)),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0x44C9A24B)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _songChip(Song s) {
+    return InkWell(
+      onTap: () => _loadSong(s),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 7, 6, 7),
+        decoration: BoxDecoration(
+          color: const Color(0x22C9A24B),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x44C9A24B)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(s.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.ui(
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: AppColors.cream)),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => _deleteSong(s),
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.close, size: 15, color: Color(0xAAF2E7D6)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Pannello dei bassi Stradella: tastiera a pulsanti col giro evidenziato,
-  /// più la legenda (basso + fila, con eventuali sostituzioni).
+  /// più la guida di accompagnamento.
   Widget _stradellaPanel() {
     final hints = _chords.map(stradellaFor).toList();
     final names = _useLetters ? noteNames : noteNamesIt;

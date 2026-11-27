@@ -22,6 +22,9 @@ dependencies:
   # Accesso alla Web Audio API del browser (fallback audio su web).
   web: ^1.1.0
 
+  # Persistenza locale (libreria canzoni, impostazioni): localStorage su web.
+  shared_preferences: ^2.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
