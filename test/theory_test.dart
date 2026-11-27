@@ -200,6 +200,53 @@ void main() {
     });
   });
 
+  group('shiftHand — frecce per spostare tutto il giro', () {
+    tearDown(() => kShift = 0);
+
+    double height(List<List<int>> vs) =>
+        vs.fold(0.0, (s, v) => s + centroid(v));
+
+    test('destra alza, sinistra abbassa, e si torna al punto di partenza', () {
+      final chords =
+          parseProgression('D A Bm G').map((r) => r.chord!).toList();
+      final base = optimize(chords);
+
+      expect(shiftHand(chords, 1), isTrue);
+      final up = optimize(chords);
+      expect(height(up), greaterThan(height(base)));
+
+      expect(shiftHand(chords, -1), isTrue);
+      expect(optimize(chords), base);
+
+      expect(shiftHand(chords, -1), isTrue);
+      expect(height(optimize(chords)), lessThan(height(base)));
+    });
+
+    test('a fine tastiera restituisce false e non cambia nulla', () {
+      final chords =
+          parseProgression('D A Bm G').map((r) => r.chord!).toList();
+      var guard = 0;
+      while (shiftHand(chords, 1) && guard++ < 50) {}
+      final top = optimize(chords);
+      final shift = kShift;
+      expect(shiftHand(chords, 1), isFalse);
+      expect(kShift, shift);
+      expect(optimize(chords), top);
+      for (final v in top) {
+        expect(v.last, lessThanOrEqualTo(kHigh));
+      }
+    });
+
+    test('con tutti gli accordi bloccati non si sposta', () {
+      final chords =
+          parseProgression('D A Bm G').map((r) => r.chord!).toList();
+      final base = optimize(chords);
+      final locks = {for (int i = 0; i < base.length; i++) i: base[i]};
+      expect(shiftHand(chords, 1, locks: locks), isFalse);
+      expect(kShift, 0);
+    });
+  });
+
   group('fingersFor', () {
     test('mappa il numero di voci alle dita', () {
       expect(fingersFor(2), [1, 5]);

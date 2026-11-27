@@ -11,13 +11,17 @@ class Song {
   /// Voicing bloccati: indice accordo nel giro → note MIDI.
   final Map<int, List<int>> locks;
 
-  const Song(this.name, this.chords, {this.locks = const {}});
+  /// Spostamento globale della zona della mano (frecce ◀ ▶), in semitoni.
+  final int shift;
+
+  const Song(this.name, this.chords, {this.locks = const {}, this.shift = 0});
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'chords': chords,
         if (locks.isNotEmpty)
           'locks': {for (final e in locks.entries) '${e.key}': e.value},
+        if (shift != 0) 'shift': shift,
       };
 
   factory Song.fromJson(Map<String, dynamic> j) {
@@ -31,7 +35,9 @@ class Song {
         }
       });
     }
-    return Song('${j['name'] ?? ''}', '${j['chords'] ?? ''}', locks: locks);
+    final shift = j['shift'];
+    return Song('${j['name'] ?? ''}', '${j['chords'] ?? ''}',
+        locks: locks, shift: shift is num ? shift.toInt() : 0);
   }
 }
 

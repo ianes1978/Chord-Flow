@@ -110,9 +110,14 @@ int kSearchHi = 81;
 /// Centro comodo della mano destra.
 int kTarget = 64;
 
+/// Spostamento globale della zona della mano, in semitoni rispetto a
+/// [kTarget]: positivo = verso destra (acuto), negativo = verso sinistra.
+int kShift = 0;
+
 /// Imposta l'estensione della tastiera. Con [low]/[high] null torna alla
 /// finestra libera; altrimenti disegno e voicing restano dentro i tasti reali.
 void setKeyboardRange(int? low, int? high) {
+  kShift = 0; // la zona della mano riparte dal centro della nuova tastiera
   if (low == null || high == null) {
     kLow = 48;
     kHigh = 84;
@@ -277,8 +282,9 @@ double centroid(List<int> v) {
   return sum / v.length;
 }
 
-/// Penalità per allontanarsi dal centro comodo della mano ([kTarget]).
-double pen(List<int> v) => (centroid(v) - kTarget).abs() * 0.4;
+/// Penalità per allontanarsi dal centro comodo della mano ([kTarget] più lo
+/// spostamento globale [kShift]).
+double pen(List<int> v) => (centroid(v) - (kTarget + kShift)).abs() * 0.4;
 
 /// Costo di transizione tra due voicing: somma degli spostamenti voce per voce,
 /// più una penalità se cambia il numero di voci.
@@ -415,6 +421,33 @@ List<List<int>> optimize(
   }
 
   return bestSeq ?? _openDp(cands, tr);
+}
+
+/// Sposta **tutto il giro** verso destra ([dir] = +1, più acuto) o verso
+/// sinistra ([dir] = −1, più grave): muove la zona della mano ([kShift]) finché
+/// l'ottimizzatore trova una soluzione diversa nella direzione richiesta.
+///
+/// Restituisce false (lasciando [kShift] com'era) se non c'è altro spazio:
+/// fine della tastiera oppure accordi bloccati che tengono ferma la mano.
+bool shiftHand(
+  List<Chord> chords,
+  int dir, {
+  bool buttons = false,
+  Map<int, List<int>>? locks,
+}) {
+  if (chords.isEmpty || dir == 0) return false;
+  double height(List<List<int>> vs) =>
+      vs.fold(0.0, (sum, v) => sum + centroid(v));
+
+  final start = kShift;
+  final before = height(optimize(chords, buttons: buttons, locks: locks));
+  for (int step = 1; step <= 36; step++) {
+    kShift = start + dir * step;
+    final after = height(optimize(chords, buttons: buttons, locks: locks));
+    if ((after - before) * dir > 1e-9) return true;
+  }
+  kShift = start;
+  return false;
 }
 
 /// DP aperta (senza termine di chiusura ciclica): minimizza lo spostamento

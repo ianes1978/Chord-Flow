@@ -230,6 +230,33 @@ class _HomePageState extends State<HomePage> {
         buttons: _buttons, locks: _locked.isEmpty ? null : _locked));
   }
 
+  /// Frecce ◀ ▶: sposta tutto il giro verso sinistra (−1) o destra (+1) sulla
+  /// tastiera, tenendo comunque il minimo movimento tra un accordo e l'altro.
+  void _shiftHand(int dir) {
+    final ok = shiftHand(_chords, dir,
+        buttons: _buttons, locks: _locked.isEmpty ? null : _locked);
+    if (ok) {
+      _rearrange();
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        duration: const Duration(seconds: 2),
+        content: Text(_locked.isEmpty
+            ? 'Non c\'è altro spazio verso ${dir > 0 ? 'destra' : 'sinistra'} '
+                'sulla tastiera'
+            : 'Non si sposta oltre: sblocca gli accordi bloccati o sei a '
+                'fine tastiera'),
+      ));
+  }
+
+  /// Riporta la zona della mano al centro della tastiera.
+  void _resetShift() {
+    kShift = 0;
+    _rearrange();
+  }
+
   /// Blocca/sblocca l'accordo [i]: da bloccato usa il voicing corrente come
   /// vincolo per l'ottimizzatore.
   Future<void> _toggleLock(int i) async {
@@ -386,7 +413,8 @@ class _HomePageState extends State<HomePage> {
         Song(name, _controller.text,
             locks: {
               for (final e in _locked.entries) e.key: List<int>.from(e.value)
-            }));
+            },
+            shift: kShift));
     _currentSong = name;
     if (mounted) {
       setState(() => _songs = songs);
@@ -402,6 +430,7 @@ class _HomePageState extends State<HomePage> {
   void _loadSong(Song s) {
     _controller.text = s.chords;
     _currentSong = s.name;
+    kShift = s.shift; // zona della mano salvata con la canzone
     _compute(); // azzera i vincoli…
     // …poi ripristina le scelte salvate (solo indici validi).
     s.locks.forEach((i, v) {
@@ -954,7 +983,48 @@ class _HomePageState extends State<HomePage> {
           child: Text(_playing ? '▶ In riproduzione…' : '▶ Suona',
               style: AppText.ui(size: 15, weight: FontWeight.w600)),
         ),
+        _shiftControls(),
       ],
+    );
+  }
+
+  /// Frecce per spostare globalmente gli accordi sulla tastiera.
+  Widget _shiftControls() {
+    final enabled = _chords.isNotEmpty;
+    Widget arrow(IconData icon, String tip, VoidCallback onTap) => IconButton(
+          onPressed: enabled ? onTap : null,
+          tooltip: tip,
+          icon: Icon(icon, size: 22),
+          color: AppColors.cream,
+          disabledColor: const Color(0x55F2E7D6),
+          visualDensity: VisualDensity.compact,
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x55C9A24B)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          arrow(Icons.arrow_back, 'Sposta tutti gli accordi a sinistra (grave)',
+              () => _shiftHand(-1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text('Sposta',
+                style: AppText.ui(
+                    size: 13,
+                    weight: FontWeight.w600,
+                    color: kShift == 0 ? AppColors.cream : AppColors.brass)),
+          ),
+          arrow(Icons.arrow_forward,
+              'Sposta tutti gli accordi a destra (acuto)', () => _shiftHand(1)),
+          if (kShift != 0)
+            arrow(Icons.restart_alt, 'Torna alla posizione centrale',
+                _resetShift),
+        ],
+      ),
     );
   }
 
