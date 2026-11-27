@@ -488,38 +488,128 @@ class _HomePageState extends State<HomePage> {
                   : board;
             },
           ),
-          const SizedBox(height: 12),
-          // Legenda per accordo.
-          Column(
-            children: [
-              for (int i = 0; i < hints.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${i + 1}.',
-                          style: AppText.ui(
-                              size: 13,
-                              weight: FontWeight.w700,
-                              color: AppColors.brass)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _stradellaLine(hints[i], names),
-                          style: AppText.ui(
-                              size: 13, color: const Color(0xFFE9D8BE)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
           const SizedBox(height: 14),
           _rhythmSection(),
+          const SizedBox(height: 16),
+          _accompanimentGuide(hints, rhythms[_rhythm], names),
         ],
       ),
+    );
+  }
+
+  /// Guida concreta: per ogni accordo del giro, la sequenza reale di pulsanti
+  /// (basso e accordo) da premere secondo il ritmo scelto.
+  Widget _accompanimentGuide(
+      List<StradellaHint> hints, Rhythm r, List<String> names) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Come accompagnare — ${r.name} (${r.meter})',
+            style: AppText.display(size: 17)),
+        const SizedBox(height: 2),
+        Text(
+          'Con la sinistra alterni un pulsante basso e un pulsante accordo, a '
+          'tempo. Per ogni accordo del giro premi in sequenza:',
+          style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
+        ),
+        const SizedBox(height: 10),
+        for (int i = 0; i < hints.length; i++)
+          _chordAccompRow(i, hints[i], r, names),
+      ],
+    );
+  }
+
+  Widget _chordAccompRow(
+      int i, StradellaHint h, Rhythm r, List<String> names) {
+    final rowGlyph = stradRowShort[h.row.index]; // M / m / 7 / °
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('${i + 1}. ',
+                  style: AppText.ui(
+                      size: 14,
+                      weight: FontWeight.w700,
+                      color: AppColors.brass)),
+              Text(h.symbol,
+                  style: AppText.ui(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      color: AppColors.cream)),
+              if (!h.exact) ...[
+                const SizedBox(width: 8),
+                Text('≈ approssimato',
+                    style: AppText.ui(size: 11, color: AppColors.moveA)),
+              ],
+            ],
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (int k = 0; k < r.pattern.length; k++) ...[
+                if (k > 0)
+                  const Icon(Icons.chevron_right,
+                      size: 16, color: Color(0x66F2E7D6)),
+                _accompChip(r.pattern[k], h, rowGlyph, names),
+              ],
+            ],
+          ),
+          if (!h.exact)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '(${h.symbol}: ${h.why}'
+                '${h.addNotePc >= 0 ? ' — fai ${names[h.addNotePc]} con la destra' : ''})',
+                style: AppText.ui(size: 11, color: const Color(0x99F2E7D6)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Chip di un singolo colpo della sequenza, con il nome reale del pulsante.
+  Widget _accompChip(
+      LhHit hit, StradellaHint h, String rowGlyph, List<String> names) {
+    late String label;
+    late Color bg, fg;
+    switch (hit) {
+      case LhHit.bass:
+        label = '${names[h.rootPc % 12]} (basso)';
+        bg = const Color(0x33C9A24B);
+        fg = AppColors.brass;
+        break;
+      case LhHit.counter:
+        label = '${names[h.counterBassPc % 12]} (3ª)';
+        bg = const Color(0x22C9A24B);
+        fg = AppColors.brass;
+        break;
+      case LhHit.chord:
+        label = '${names[h.rootPc % 12]} $rowGlyph';
+        bg = const Color(0x33E2853F);
+        fg = AppColors.moveA;
+        break;
+      case LhHit.rest:
+        label = '·';
+        bg = const Color(0x11F2E7D6);
+        fg = const Color(0x66F2E7D6);
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x33C9A24B)),
+      ),
+      child: Text(label,
+          style: AppText.ui(size: 13, weight: FontWeight.w700, color: fg)),
     );
   }
 
@@ -613,21 +703,6 @@ class _HomePageState extends State<HomePage> {
           ),
       ],
     );
-  }
-
-  String _stradellaLine(StradellaHint h, List<String> names) {
-    final rowName =
-        h.row == StradRow.major ? 'Maggiore' : (stradRowName[h.row] ?? '');
-    final sb = StringBuffer(
-        '${h.symbol}: basso ${names[h.rootPc % 12]} + fila $rowName');
-    if (!h.exact) {
-      sb.write('  (approx: ${h.why}');
-      if (h.addNotePc >= 0) {
-        sb.write(' — fai ${names[h.addNotePc]} con la destra');
-      }
-      sb.write(')');
-    }
-    return sb.toString();
   }
 
   Widget _grid(bool twoCols) {
