@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import '../music/stradella.dart';
-import '../music/theory.dart';
 import 'theme.dart';
 
 /// Disegna una porzione della tastiera dei **bassi Stradella** (come sulla
@@ -18,21 +17,13 @@ class StradellaPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (hints.isEmpty) return;
-
-    // Intervallo di colonne (quinte) necessario, con un po' di margine.
-    var minF = 99, maxF = -99;
-    for (final h in hints) {
-      final f = stradellaFifths(h.rootPc);
-      minF = math.min(minF, f);
-      maxF = math.max(maxF, f);
-    }
-    minF -= 1;
-    maxF += 1;
-    final nCols = maxF - minF + 1;
+    // Board completa della FR-1x: 12 colonne (C♯..F♯) per 6 file.
+    const minF = stradMinFifths;
+    const maxF = stradMaxFifths;
+    const nCols = maxF - minF + 1;
 
     const rows = 6; // counterbass, bass, major, minor, seventh, diminished
-    const labelW = 26.0; // etichette file a sinistra
+    const labelW = 24.0; // etichette file a sinistra
     const colLabelH = 16.0; // nomi radici in basso
 
     final boardW = size.width - labelW;
@@ -44,10 +35,10 @@ class StradellaPainter extends CustomPainter {
     double cx(int f) => labelW + (f - minF + 0.5) * colW;
     double cy(int row) => (row + 0.5) * rowH;
 
-    final names = useLetters ? noteNames : noteNamesIt;
+    final colLabels = useLetters ? stradColLabels : stradColLabelsIt;
 
-    // Mappa colonna → quali hint la usano (per i nomi in grassetto).
-    final usedRoots = <int>{for (final h in hints) h.rootPc};
+    // Colonne usate dal giro (per i nomi in grassetto).
+    final usedCols = <int>{for (final h in hints) stradellaFifths(h.rootPc)};
 
     // --- Griglia di base (bottoni spenti) ---
     final basePaint = Paint()..color = const Color(0x22F2E7D6);
@@ -71,9 +62,8 @@ class StradellaPainter extends CustomPainter {
 
     // --- Nomi radici (in basso) ---
     for (int f = minF; f <= maxF; f++) {
-      final pc = pcFromFifths(f);
-      final used = usedRoots.contains(pc);
-      _text(canvas, names[pc], Offset(cx(f), boardH + colLabelH / 2),
+      final used = usedCols.contains(f);
+      _text(canvas, colLabels[f + 5], Offset(cx(f), boardH + colLabelH / 2),
           size: 10,
           color: used ? AppColors.brass : const Color(0x66F2E7D6),
           center: true,

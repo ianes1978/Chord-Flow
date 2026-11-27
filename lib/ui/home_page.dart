@@ -469,12 +469,22 @@ class _HomePageState extends State<HomePage> {
             style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: StradellaPainter(hints, useLetters: _useLetters),
-            ),
+          // Board completa FR-1x (12 colonne): scroll orizzontale se stretta.
+          LayoutBuilder(
+            builder: (context, c) {
+              final w = c.maxWidth < 560.0 ? 560.0 : c.maxWidth;
+              final board = SizedBox(
+                height: 180,
+                width: w,
+                child: CustomPaint(
+                  painter: StradellaPainter(hints, useLetters: _useLetters),
+                ),
+              );
+              return c.maxWidth < 560.0
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal, child: board)
+                  : board;
+            },
           ),
           const SizedBox(height: 12),
           // Legenda per accordo.

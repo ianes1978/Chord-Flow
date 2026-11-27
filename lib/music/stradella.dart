@@ -121,3 +121,19 @@ int stradellaFifths(int pc) {
 
 /// Pitch class della colonna a distanza [fifths] quinte da C.
 int pcFromFifths(int fifths) => ((7 * fifths) % 12 + 12) % 12;
+
+/// Etichette delle 12 colonne della board Stradella FR-1x, indicizzate per
+/// `fifths + 5` (da C♯ a F♯), con i bemolle come nel manuale Roland.
+const List<String> stradColLabels = [
+  'C♯', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯',
+];
+
+/// Versione in solfeggio delle etichette colonna.
+const List<String> stradColLabelsIt = [
+  'Do♯', 'La♭', 'Mi♭', 'Si♭', 'Fa', 'Do', 'Sol', 'Re', 'La', 'Mi', 'Si', 'Fa♯',
+];
+
+/// Estremi (in quinte da C) della board FR-1x: da C♯ (−5) a F♯ (+6).
+const int stradMinFifths = -5;
+const int stradMaxFifths = 6;
+
