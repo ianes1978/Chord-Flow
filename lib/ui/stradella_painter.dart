@@ -228,8 +228,9 @@ class StradellaPainter extends CustomPainter {
 }
 
 /// Mini-mappa della tastiera sinistra per una singola card: una finestra di
-/// poche colonne attorno all'accordo, coi tasti da premere colorati e il
-/// contorno sui tasti di riferimento (Do, Mi, La♭).
+/// poche colonne attorno all'accordo, coi tasti da premere colorati **e col
+/// nome scritto sopra**, più il contorno (e il nome) sui tasti di riferimento
+/// (Do, Mi, La♭).
 class MiniStradellaPainter extends CustomPainter {
   final StradellaHint h;
   final bool useLetters;
@@ -242,7 +243,6 @@ class MiniStradellaPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final f0 = stradellaFifths(h.rootPc);
-    // Finestra: dalla colonna a sinistra fino alla quinta (a destra) + margine.
     final minF = f0 - 2;
     final maxF = f0 + 2;
     const nCols = 5;
@@ -254,10 +254,16 @@ class MiniStradellaPainter extends CustomPainter {
     final colW = boardW / (nCols + (rows - 1) * slant + 0.4);
     final rowH = size.height / rows;
     final radius = math.min(colW, rowH) * 0.4;
+    // I tasti da premere sono più grandi, così ci sta il nome.
+    final big = math.min(math.min(colW, rowH * 1.5) * 0.5, radius * 1.6);
 
     double cx(int f, int row) =>
         labelW + (0.2 + (f - minF + 0.5) + (rows - 1 - row) * slant) * colW;
     double cy(int row) => (row + 0.5) * rowH;
+
+    final colLabels = useLetters ? stradColLabels : stradColLabelsIt;
+    // Nome della nota della colonna [f] (coi bemolle come sullo strumento).
+    String colName(int f) => colLabels[((f + 5) % 12 + 12) % 12];
 
     final basePaint = Paint()..color = const Color(0x1AF2E7D6);
     final baseOutline = Paint()
@@ -265,7 +271,7 @@ class MiniStradellaPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
-    // Griglia + contorno sui tasti di riferimento (fila basso).
+    // Griglia + contorno e nome sui tasti di riferimento (fila basso).
     for (int f = minF; f <= maxF; f++) {
       final pc = pcFromFifths(f);
       for (int r = 0; r < rows; r++) {
@@ -280,34 +286,35 @@ class MiniStradellaPainter extends CustomPainter {
                 ..color = AppColors.cream
                 ..style = PaintingStyle.stroke
                 ..strokeWidth = 1.4);
+          _label(canvas, colName(f), c, radius * 1.7,
+              color: const Color(0xCCF2E7D6), maxSize: 8);
         }
       }
     }
 
     // Etichette file a sinistra.
     for (int r = 0; r < rows; r++) {
-      final tp = TextPainter(
-        text: TextSpan(
-            text: stradRowShort[r],
-            style: const TextStyle(color: Color(0x99F2E7D6), fontSize: 8)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(labelW / 2 - tp.width / 2, cy(r) - tp.height / 2));
+      _label(canvas, stradRowShort[r], Offset(labelW / 2, cy(r)), labelW,
+          color: const Color(0x99F2E7D6), maxSize: 8, bold: false);
     }
 
-    final bassC = Offset(cx(f0, StradRow.bass.index), cy(StradRow.bass.index));
+    final bassRow = StradRow.bass.index;
+    final bassC = Offset(cx(f0, bassRow), cy(bassRow));
     final chordC = Offset(cx(f0, h.row.index), cy(h.row.index));
+    final rootName = colName(f0);
 
-    void fill(Offset c, Gradient g) => canvas.drawCircle(
-        c,
-        radius,
-        Paint()
-          ..shader = g.createShader(Rect.fromCircle(center: c, radius: radius)));
+    void button(Offset c, Gradient g, String name, Color textColor) {
+      canvas.drawCircle(
+          c,
+          big,
+          Paint()
+            ..shader = g.createShader(Rect.fromCircle(center: c, radius: big)));
+      _label(canvas, name, c, big * 1.75, color: textColor, maxSize: 11);
+    }
 
     if (triangle) {
-      final ff = stradellaFifths((h.rootPc + 7) % 12);
-      final fifthC =
-          Offset(cx(ff, StradRow.bass.index), cy(StradRow.bass.index));
+      final ff = f0 + 1; // la quinta è la colonna subito a destra
+      final fifthC = Offset(cx(ff, bassRow), cy(bassRow));
       final path = Path()
         ..moveTo(bassC.dx, bassC.dy)
         ..lineTo(fifthC.dx, fifthC.dy)
@@ -320,26 +327,56 @@ class MiniStradellaPainter extends CustomPainter {
             ..color = AppColors.brass
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5);
-      fill(fifthC, AppColors.stayGradient);
+      button(fifthC, AppColors.stayGradient, colName(ff), AppColors.blackKey);
     } else {
-      // Contrabbasso (3ª) tenue come basso alternato.
-      final cbC = Offset(
-          cx(f0, StradRow.counterbass.index), cy(StradRow.counterbass.index));
-      canvas.drawCircle(
-          cbC, radius * 0.85, Paint()..color = const Color(0x33C9A24B));
+      // Contrabbasso (3ª) come basso alternato: tenue, ma col nome.
+      final cbRow = StradRow.counterbass.index;
+      final cbC = Offset(cx(f0, cbRow), cy(cbRow));
+      canvas.drawCircle(cbC, big * 0.9, Paint()..color = const Color(0x55C9A24B));
+      final names = useLetters ? noteNames : noteNamesIt;
+      _label(canvas, names[h.counterBassPc % 12], cbC, big * 1.6,
+          color: AppColors.cream, maxSize: 9);
     }
 
-    fill(bassC, AppColors.stayGradient);
-    fill(chordC, h.exact ? AppColors.stayGradient : AppColors.moveGradient);
+    button(bassC, AppColors.stayGradient, rootName, AppColors.blackKey);
+    button(
+        chordC,
+        h.exact ? AppColors.stayGradient : AppColors.moveGradient,
+        '$rootName${stradRowShort[h.row.index]}',
+        h.exact ? AppColors.blackKey : Colors.white);
     if (!h.exact) {
       canvas.drawCircle(
           chordC,
-          radius + 1.5,
+          big + 1.5,
           Paint()
             ..color = AppColors.moveA
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5);
     }
+  }
+
+  /// Scrive [s] centrato in [c], rimpicciolendo il carattere finché non sta
+  /// in [maxWidth] (minimo 5px).
+  void _label(Canvas canvas, String s, Offset c, double maxWidth,
+      {required Color color, double maxSize = 10, bool bold = true}) {
+    var size = maxSize;
+    late TextPainter tp;
+    while (true) {
+      tp = TextPainter(
+        text: TextSpan(
+          text: s,
+          style: TextStyle(
+              color: color,
+              fontSize: size,
+              height: 1.0,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (tp.width <= maxWidth || size <= 5) break;
+      size -= 0.5;
+    }
+    tp.paint(canvas, Offset(c.dx - tp.width / 2, c.dy - tp.height / 2));
   }
 
   @override

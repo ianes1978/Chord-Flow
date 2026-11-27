@@ -121,7 +121,7 @@ class ChordCard extends StatelessWidget {
               SizedBox(height: compact ? 4 : 6),
               // Mini-mappa della tastiera sinistra per questo accordo.
               SizedBox(
-                height: compact ? 64 : 78,
+                height: compact ? 112 : 138,
                 width: double.infinity,
                 child: CustomPaint(
                   painter: MiniStradellaPainter(strad!,
@@ -256,8 +256,8 @@ class ChordCard extends StatelessWidget {
           height: h,
           child: CustomPaint(
             painter: buttons
-                ? AccordionPainter(voiced.voices)
-                : KeyboardPainter(voiced.voices),
+                ? AccordionPainter(voiced.voices, useLetters: useLetters)
+                : KeyboardPainter(voiced.voices, useLetters: useLetters),
             size: Size(constraints.maxWidth, h),
           ),
         );

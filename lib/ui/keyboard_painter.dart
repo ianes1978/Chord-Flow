@@ -5,6 +5,28 @@ import '../music/theory.dart';
 import '../music/voicing.dart';
 import 'theme.dart';
 
+/// Prepara il testo [s] rimpicciolendolo finché non sta in [maxWidth].
+/// Restituisce null se non ci sta nemmeno a 5px (meglio niente che illeggibile).
+TextPainter? _fitName(String s, double maxWidth, double maxSize, Color color) {
+  var size = maxSize;
+  while (size >= 5) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(
+            color: color,
+            fontSize: size,
+            height: 1.0,
+            fontWeight: FontWeight.w600),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    if (tp.width <= maxWidth) return tp;
+    size -= 0.5;
+  }
+  return null;
+}
+
 /// Disegna un pianoforte da [kLow] a [kHigh] (C3–C6) con i tasti dell'accordo
 /// evidenziati e il numero del dito stampato su ciascun tasto attivo.
 ///
@@ -14,7 +36,10 @@ class KeyboardPainter extends CustomPainter {
   /// Voci del voicing corrente (con dito e stato fermo/in movimento).
   final List<VoiceState> voices;
 
-  KeyboardPainter(this.voices);
+  /// true = nomi con le lettere (A B C), false = solfeggio.
+  final bool useLetters;
+
+  KeyboardPainter(this.voices, {this.useLetters = false});
 
   // Pitch class dei tasti bianchi.
   static const Set<int> _whitePcs = {0, 2, 4, 5, 7, 9, 11};
@@ -128,11 +153,22 @@ class KeyboardPainter extends CustomPainter {
         : keyRect.bottom - tp.height - keyRect.width * 0.18;
     final dx = keyRect.left + (keyRect.width - tp.width) / 2;
     tp.paint(canvas, Offset(dx, dy));
+
+    // Nome della nota, piccolo, sopra il numero del dito.
+    final names = useLetters ? noteNames : noteNamesIt;
+    final name = _fitName(names[v.midi % 12], keyRect.width - 2,
+        (keyRect.width * 0.46).clamp(5.0, 10.0), textColor);
+    if (name != null) {
+      name.paint(
+          canvas,
+          Offset(keyRect.left + (keyRect.width - name.width) / 2,
+              dy - name.height - 1));
+    }
   }
 
   @override
   bool shouldRepaint(covariant KeyboardPainter oldDelegate) =>
-      oldDelegate.voices != voices;
+      oldDelegate.voices != voices || oldDelegate.useLetters != useLetters;
 }
 
 /// Disegna la **bottoniera cromatica** della fisarmonica (sistema C / do-griff)
@@ -147,7 +183,10 @@ class AccordionPainter extends CustomPainter {
   /// Voci del voicing corrente (con dito e stato fermo/in movimento).
   final List<VoiceState> voices;
 
-  AccordionPainter(this.voices);
+  /// true = nomi con le lettere (A B C), false = solfeggio.
+  final bool useLetters;
+
+  AccordionPainter(this.voices, {this.useLetters = false});
 
   // Pitch class "naturali" (come i tasti bianchi del piano), per orientarsi.
   static const Set<int> _naturals = {0, 2, 4, 5, 7, 9, 11};
@@ -203,22 +242,36 @@ class AccordionPainter extends CustomPainter {
 
   void _drawFinger(Canvas canvas, Offset center, double radius, VoiceState v) {
     final textColor = v.isStay ? AppColors.blackKey : Colors.white;
+    // Nome della nota sotto il numero, se il bottone è abbastanza grande.
+    final names = useLetters ? noteNames : noteNamesIt;
+    final name = radius >= 8
+        ? _fitName(names[v.midi % 12], radius * 1.5, radius * 0.6, textColor)
+        : null;
     final tp = TextPainter(
       text: TextSpan(
         text: '${v.finger}',
         style: TextStyle(
           color: textColor,
-          fontSize: (radius * 1.15).clamp(9.0, 18.0),
+          fontSize: (radius * (name == null ? 1.15 : 0.9)).clamp(8.0, 18.0),
+          height: 1.0,
           fontWeight: FontWeight.w700,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas,
-        Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+    if (name == null) {
+      tp.paint(canvas,
+          Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+    } else {
+      final total = tp.height + name.height;
+      final top = center.dy - total / 2;
+      tp.paint(canvas, Offset(center.dx - tp.width / 2, top));
+      name.paint(
+          canvas, Offset(center.dx - name.width / 2, top + tp.height));
+    }
   }
 
   @override
   bool shouldRepaint(covariant AccordionPainter oldDelegate) =>
-      oldDelegate.voices != voices;
+      oldDelegate.voices != voices || oldDelegate.useLetters != useLetters;
 }
