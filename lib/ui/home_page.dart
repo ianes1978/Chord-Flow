@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../audio/synth.dart';
 import '../models/chord.dart';
 import '../music/arranger.dart';
+import '../music/stradella.dart';
 import '../music/theory.dart';
 import '../music/voicing.dart';
 import 'chord_card.dart';
+import 'stradella_painter.dart';
 import 'theme.dart';
 
 /// Schermata principale di Chord Flow.
@@ -30,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
   bool _compact = false; // true = forza 2 accordi per riga (vista compatta)
   bool _buttons = false; // true = bottoniera fisarmonica, false = pianoforte
+  bool _stradella = false; // true = mostra i bassi Stradella (mano sinistra)
 
   @override
   void initState() {
@@ -163,6 +166,10 @@ class _HomePageState extends State<HomePage> {
                         ],
                         const SizedBox(height: 22),
                         _grid(twoCols),
+                        if (_stradella && _chords.isNotEmpty) ...[
+                          const SizedBox(height: 22),
+                          _stradellaPanel(),
+                        ],
                       ],
                     ),
                   ),
@@ -247,6 +254,27 @@ class _HomePageState extends State<HomePage> {
         _notationToggle(),
         _keyboardToggle(),
         _compactToggle(),
+        _stradellaToggle(),
+      ],
+    );
+  }
+
+  /// Switch per mostrare i bassi Stradella (mano sinistra) per il giro.
+  Widget _stradellaToggle() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Bassi Stradella',
+            style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+        const SizedBox(width: 4),
+        Switch(
+          value: _stradella,
+          onChanged: (v) => setState(() => _stradella = v),
+          activeColor: AppColors.brass,
+          activeTrackColor: const Color(0x55C9A24B),
+          inactiveThumbColor: AppColors.brass,
+          inactiveTrackColor: const Color(0x33C9A24B),
+        ),
       ],
     );
   }
@@ -414,6 +442,86 @@ class _HomePageState extends State<HomePage> {
         style: AppText.ui(size: 13, color: const Color(0xFFF3D9C2)),
       ),
     );
+  }
+
+  /// Pannello dei bassi Stradella: tastiera a pulsanti col giro evidenziato,
+  /// più la legenda (basso + fila, con eventuali sostituzioni).
+  Widget _stradellaPanel() {
+    final hints = _chords.map(stradellaFor).toList();
+    final names = _useLetters ? noteNames : noteNamesIt;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0x14F2E7D6),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x33C9A24B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Bassi Stradella · mano sinistra',
+              style: AppText.display(size: 20)),
+          const SizedBox(height: 2),
+          Text(
+            'File: 3ª (contrabbasso) · B (basso) · M · m · 7 · ° . '
+            'Numero = ordine nel giro; arancio = accordo approssimato.',
+            style: AppText.ui(size: 12, color: const Color(0x99F2E7D6)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: StradellaPainter(hints, useLetters: _useLetters),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Legenda per accordo.
+          Column(
+            children: [
+              for (int i = 0; i < hints.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${i + 1}.',
+                          style: AppText.ui(
+                              size: 13,
+                              weight: FontWeight.w700,
+                              color: AppColors.brass)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _stradellaLine(hints[i], names),
+                          style: AppText.ui(
+                              size: 13, color: const Color(0xFFE9D8BE)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _stradellaLine(StradellaHint h, List<String> names) {
+    final rowName =
+        h.row == StradRow.major ? 'Maggiore' : (stradRowName[h.row] ?? '');
+    final sb = StringBuffer(
+        '${h.symbol}: basso ${names[h.rootPc % 12]} + fila $rowName');
+    if (!h.exact) {
+      sb.write('  (approx: ${h.why}');
+      if (h.addNotePc >= 0) {
+        sb.write(' — fai ${names[h.addNotePc]} con la destra');
+      }
+      sb.write(')');
+    }
+    return sb.toString();
   }
 
   Widget _grid(bool twoCols) {
