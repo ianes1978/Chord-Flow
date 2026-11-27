@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   List<VoicedChord> _voiced = [];
   List<String> _unknown = [];
   final Map<int, List<int>> _locked = {}; // indice accordo → voicing bloccato
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int? _highlighted; // indice della card evidenziata durante la riproduzione
   bool _playing = false;
   bool _useLetters = false; // false = solfeggio (Do Re Mi), true = lettere (A B C)
@@ -290,6 +291,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      endDrawer: _optionsDrawer(),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
@@ -311,16 +314,12 @@ class _HomePageState extends State<HomePage> {
                         _header(),
                         const SizedBox(height: 18),
                         _legend(),
-                        const SizedBox(height: 12),
-                        _toggles(),
                         const SizedBox(height: 18),
                         _inputRow(),
                         if (_unknown.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           _unknownBanner(),
                         ],
-                        const SizedBox(height: 14),
-                        _libraryBar(),
                         const SizedBox(height: 22),
                         _grid(contentW),
                         if (_stradella && _chords.isNotEmpty) ...[
@@ -343,12 +342,31 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'VOICING & RIVOLTI PER FISARMONICA',
-          style: AppText.ui(
-              size: 12,
-              weight: FontWeight.w600,
-              color: AppColors.brass.withOpacity(0.9)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                'VOICING & RIVOLTI PER FISARMONICA',
+                style: AppText.ui(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: AppColors.brass.withOpacity(0.9)),
+              ),
+            ),
+            // Apre il pannello laterale con opzioni e libreria.
+            OutlinedButton.icon(
+              onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+              icon: const Icon(Icons.tune, size: 18, color: AppColors.cream),
+              label: Text('Opzioni & Libreria',
+                  style: AppText.ui(size: 13, color: AppColors.cream)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0x44C9A24B)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         // Titolo "Chord Flow" con la parola "Flow" in corsivo ottone.
@@ -402,17 +420,53 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Riga con gli switch di visualizzazione (vanno a capo se stretti).
-  Widget _toggles() {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _notationToggle(),
-        _keyboardToggle(),
-        _compactToggle(),
-        _stradellaToggle(),
-      ],
+  /// Pannello laterale con opzioni di visualizzazione e libreria canzoni.
+  Widget _optionsDrawer() {
+    return Drawer(
+      backgroundColor: AppColors.bgBottom,
+      width: 340,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('Opzioni', style: AppText.display(size: 24)),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => _scaffoldKey.currentState?.closeEndDrawer(),
+                    icon: const Icon(Icons.close, color: AppColors.cream),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('VISUALIZZAZIONE',
+                  style: AppText.ui(
+                      size: 11,
+                      weight: FontWeight.w700,
+                      color: AppColors.brass)),
+              const SizedBox(height: 10),
+              _notationToggle(),
+              const SizedBox(height: 6),
+              _keyboardToggle(),
+              const SizedBox(height: 6),
+              _compactToggle(),
+              const SizedBox(height: 6),
+              _stradellaToggle(),
+              const SizedBox(height: 20),
+              Text('LIBRERIA & BACKUP',
+                  style: AppText.ui(
+                      size: 11,
+                      weight: FontWeight.w700,
+                      color: AppColors.brass)),
+              const SizedBox(height: 10),
+              _libraryBar(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
