@@ -46,7 +46,7 @@ class _HomePageState extends State<HomePage> {
   String? _stradFilter; // accordo filtrato nel pannello Stradella (null = tutti)
   String? _currentSong; // nome della canzone caricata/salvata (per "Salva")
   String _kbPreset = 'free'; // estensione tastiera destra (preset)
-  int _customLow = 57; // tastiera personalizzata: primo tasto bianco (MIDI)
+  int _customLow = 59; // tastiera personalizzata: primo tasto bianco (MIDI)
   int _customWhites = 16; // tastiera personalizzata: numero di tasti bianchi
   static const _kbPrefKey = 'chordflow.keyboard.v1';
   List<Song> _songs = []; // libreria canzoni salvate

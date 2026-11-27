@@ -73,11 +73,11 @@ class KeyboardPreset {
   const KeyboardPreset(this.id, this.label, [this.low, this.high]);
 }
 
-/// Preset disponibili. Roland FR-1x: 16 tasti bianchi a partire dal La
-/// (A3–B5). "Personalizzata" usa primo tasto bianco + numero di bianchi.
+/// Preset disponibili. Roland FR-1x: 26 tasti (16 bianchi) dal Si al Do
+/// (B3–C6). "Personalizzata" usa primo tasto bianco + numero di bianchi.
 const List<KeyboardPreset> keyboardPresets = [
   KeyboardPreset('free', 'Libera (C3–C6)'),
-  KeyboardPreset('fr1x', 'Roland FR-1x · 16 tasti bianchi dal La (A3–B5)', 57, 83),
+  KeyboardPreset('fr1x', 'Roland FR-1x · 26 tasti (16 bianchi) dal Si al Do (B3–C6)', 59, 84),
   KeyboardPreset('custom', 'Personalizzata'),
 ];
 

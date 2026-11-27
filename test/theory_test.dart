@@ -175,15 +175,18 @@ void main() {
     });
   });
 
-  group('tastiera Roland FR-1x (16 bianchi dal La, A3–B5)', () {
+  group('tastiera Roland FR-1x (26 tasti, 16 bianchi, B3–C6)', () {
     tearDown(() => setKeyboardRange(null, null));
 
-    test('16 tasti bianchi dal La3 arrivano al Si5', () {
-      expect(highFromWhites(57, 16), 83);
+    test('16 tasti bianchi dal Si3 arrivano al Do6: 26 tasti in tutto', () {
+      expect(highFromWhites(59, 16), 84);
+      expect(84 - 59 + 1, 26);
+      final fr1x = keyboardPresets.firstWhere((k) => k.id == 'fr1x');
+      expect([fr1x.low, fr1x.high], [59, 84]);
     });
 
     test('tutti i voicing restano dentro i tasti reali', () {
-      setKeyboardRange(57, 83);
+      setKeyboardRange(59, 84);
       final chords = parseProgression('D A Bm G Dmaj7 G7 Csus4 F#m')
           .map((r) => r.chord!)
           .toList();
@@ -191,8 +194,8 @@ void main() {
         ...optimize(chords),
         ...optimize(chords, buttons: true),
       ]) {
-        expect(v.first, greaterThanOrEqualTo(57));
-        expect(v.last, lessThanOrEqualTo(83));
+        expect(v.first, greaterThanOrEqualTo(59));
+        expect(v.last, lessThanOrEqualTo(84));
       }
     });
   });
