@@ -19,6 +19,9 @@ dependencies:
   # Sintesi audio cross-platform (oscillatori/wave + filtri) per il timbro ad ancia.
   flutter_soloud: ^3.2.7
 
+  # Accesso alla Web Audio API del browser (fallback audio su web).
+  web: ^1.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

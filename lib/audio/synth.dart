@@ -5,6 +5,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
+// Su web usa la Web Audio API; altrove le funzioni sono stub (si usa soloud).
+import 'web_audio_stub.dart' if (dart.library.js_interop) 'web_audio.dart'
+    as webaudio;
+
 /// Sintesi audio dal timbro ad ancia.
 ///
 /// Per ogni nota generiamo due oscillatori **sawtooth** leggermente disaccordati
@@ -31,8 +35,14 @@ class Synth {
     if (_available || _initing) return;
     _initing = true;
     try {
-      await SoLoud.instance.init();
-      _available = true;
+      if (kIsWeb) {
+        // Web: usa la Web Audio API (soloud su web richiede SharedArrayBuffer).
+        webaudio.initWeb();
+        _available = true;
+      } else {
+        await SoLoud.instance.init();
+        _available = true;
+      }
     } catch (e) {
       debugPrint('Audio non disponibile: $e');
       _available = false;
@@ -49,6 +59,10 @@ class Synth {
     if (!_available || voicing.isEmpty) return;
     try {
       final wav = _renderChordWav(voicing);
+      if (kIsWeb) {
+        webaudio.playWavWeb(wav);
+        return;
+      }
       final source = await SoLoud.instance.loadMem('chord_${_counter++}.wav', wav);
       final handle = await SoLoud.instance.play(source);
       // Liberiamo la sorgente quando il suono è finito.
@@ -189,7 +203,7 @@ class Synth {
   }
 
   void dispose() {
-    if (_available) {
+    if (_available && !kIsWeb) {
       try {
         SoLoud.instance.deinit();
       } catch (_) {}

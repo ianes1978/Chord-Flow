@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../audio/synth.dart';
 import '../models/chord.dart';
 import '../music/arranger.dart';
+import '../music/rhythm.dart';
 import '../music/stradella.dart';
 import '../music/theory.dart';
 import '../music/voicing.dart';
@@ -33,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   bool _compact = false; // true = forza 2 accordi per riga (vista compatta)
   bool _buttons = false; // true = bottoniera fisarmonica, false = pianoforte
   bool _stradella = false; // true = mostra i bassi Stradella (mano sinistra)
+  int _rhythm = 0; // indice del ritmo selezionato
 
   @override
   void initState() {
@@ -514,8 +516,102 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
           ),
+          const SizedBox(height: 14),
+          _rhythmSection(),
         ],
       ),
+    );
+  }
+
+  /// Selettore di ritmo + striscia del pattern basso/accordo della sinistra.
+  Widget _rhythmSection() {
+    final r = rhythms[_rhythm];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Ritmo mano sinistra:',
+                style: AppText.ui(size: 13, color: const Color(0xCCF2E7D6))),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: const Color(0x14F2E7D6),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x33C9A24B)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _rhythm,
+                  dropdownColor: AppColors.bgBottom,
+                  isDense: true,
+                  style: AppText.ui(size: 14, color: AppColors.cream),
+                  items: [
+                    for (int i = 0; i < rhythms.length; i++)
+                      DropdownMenuItem(
+                        value: i,
+                        child: Text(
+                          '${rhythms[i].name}  ·  ${rhythms[i].meter}'
+                          '${rhythms[i].forro ? '  (forró)' : ''}',
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _rhythm = v ?? 0),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _beatStrip(r),
+        const SizedBox(height: 6),
+        Text(
+          'B = basso · C = contrabbasso (3ª) · A = accordo · · = pausa. '
+          'Pattern indicativo: alterna i pulsanti a tempo.',
+          style: AppText.ui(size: 11, color: const Color(0x99F2E7D6)),
+        ),
+      ],
+    );
+  }
+
+  Widget _beatStrip(Rhythm r) {
+    Color bg(LhHit h) {
+      switch (h) {
+        case LhHit.bass:
+          return const Color(0x33C9A24B);
+        case LhHit.counter:
+          return const Color(0x22C9A24B);
+        case LhHit.chord:
+          return const Color(0x33E2853F);
+        case LhHit.rest:
+          return const Color(0x11F2E7D6);
+      }
+    }
+
+    Color fg(LhHit h) => h == LhHit.chord
+        ? AppColors.moveA
+        : (h == LhHit.rest ? const Color(0x66F2E7D6) : AppColors.brass);
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final h in r.pattern)
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: bg(h),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0x33C9A24B)),
+            ),
+            child: Text(h.glyph,
+                style: AppText.ui(
+                    size: 15, weight: FontWeight.w700, color: fg(h))),
+          ),
+      ],
     );
   }
 
