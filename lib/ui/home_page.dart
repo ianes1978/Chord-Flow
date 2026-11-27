@@ -295,12 +295,16 @@ class _HomePageState extends State<HomePage> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final twoCols = constraints.maxWidth >= 660;
+              // In vista compatta allarghiamo il contenitore per sfruttare lo
+              // schermo grande (più colonne, tutto in una schermata).
+              final boxMax = _compact ? 1600.0 : 980.0;
+              final contentW =
+                  (constraints.maxWidth - 40).clamp(0.0, boxMax);
               return SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 980),
+                    constraints: BoxConstraints(maxWidth: boxMax),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -318,7 +322,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 14),
                         _libraryBar(),
                         const SizedBox(height: 22),
-                        _grid(twoCols),
+                        _grid(contentW),
                         if (_stradella && _chords.isNotEmpty) ...[
                           const SizedBox(height: 22),
                           _stradellaPanel(),
@@ -972,9 +976,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _grid(bool twoCols) {
-    // La vista compatta forza due colonne anche su schermo stretto.
-    final two = twoCols || _compact;
+  Widget _grid(double maxWidth) {
+    // Numero di colonne: in vista compatta tante quante ne stanno (schermo
+    // grande = tutto in una schermata), altrimenti 1 (mobile) o 2 (≥660px).
+    final int cols = _compact
+        ? (maxWidth / 250).floor().clamp(2, 6)
+        : (maxWidth >= 660 ? 2 : 1);
     if (_voiced.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
@@ -983,8 +990,7 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Card compatte quando lo switch forza due colonne su schermo stretto.
-    final cardsCompact = _compact && !twoCols;
+    final cardsCompact = _compact;
     final cards = <Widget>[
       for (int i = 0; i < _voiced.length; i++)
         ChordCard(
@@ -997,13 +1003,14 @@ class _HomePageState extends State<HomePage> {
           buttons: _buttons,
           locked: _locked.containsKey(i),
           strad: _stradella ? stradellaFor(_chords[i]) : null,
+          triangle: _triangle,
           onTap: () => _playOne(i),
           onToggleLock: () => _toggleLock(i),
           onShowAlternatives: () => _showAlternatives(i),
         ),
     ];
 
-    if (!two) {
+    if (cols <= 1) {
       return Column(
         children: [
           for (final c in cards)
@@ -1012,22 +1019,21 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Due colonne (da ~660px in su, o forzate dalla vista compatta).
     final gap = cardsCompact ? 10.0 : 16.0;
     final rows = <Widget>[];
-    for (int i = 0; i < cards.length; i += 2) {
-      final left = cards[i];
-      final right = i + 1 < cards.length ? cards[i + 1] : null;
+    for (int i = 0; i < cards.length; i += cols) {
+      final rowChildren = <Widget>[];
+      for (int j = 0; j < cols; j++) {
+        if (j > 0) rowChildren.add(SizedBox(width: gap));
+        final idx = i + j;
+        rowChildren.add(Expanded(
+            child: idx < cards.length ? cards[idx] : const SizedBox()));
+      }
       rows.add(Padding(
         padding: EdgeInsets.only(bottom: gap),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            SizedBox(width: gap),
-            Expanded(child: right ?? const SizedBox()),
-          ],
-        ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rowChildren),
       ));
     }
     return Column(children: rows);

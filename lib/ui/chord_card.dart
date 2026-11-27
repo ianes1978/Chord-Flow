@@ -3,6 +3,7 @@ import '../music/stradella.dart';
 import '../music/theory.dart';
 import '../music/voicing.dart';
 import 'keyboard_painter.dart';
+import 'stradella_painter.dart';
 import 'theme.dart';
 
 /// Card di un singolo accordo del giro: nome, rivolto, tastiera con diteggiatura
@@ -17,6 +18,7 @@ class ChordCard extends StatelessWidget {
   final bool buttons; // true = bottoniera fisarmonica, false = pianoforte
   final bool locked; // true = voicing bloccato (vincolo per l'ottimizzatore)
   final StradellaHint? strad; // suggerimento bassi sinistra (se attivo)
+  final bool triangle; // vista triangolo nella mini-mappa
   final VoidCallback onTap;
   final VoidCallback onToggleLock;
   final VoidCallback onShowAlternatives;
@@ -32,6 +34,7 @@ class ChordCard extends StatelessWidget {
     required this.buttons,
     required this.locked,
     required this.strad,
+    required this.triangle,
     required this.onTap,
     required this.onToggleLock,
     required this.onShowAlternatives,
@@ -115,6 +118,16 @@ class ChordCard extends StatelessWidget {
             if (strad != null) ...[
               SizedBox(height: compact ? 4 : 6),
               _stradLine(),
+              SizedBox(height: compact ? 4 : 6),
+              // Mini-mappa della tastiera sinistra per questo accordo.
+              SizedBox(
+                height: compact ? 64 : 78,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: MiniStradellaPainter(strad!,
+                      useLetters: useLetters, triangle: triangle),
+                ),
+              ),
             ],
           ],
         ),

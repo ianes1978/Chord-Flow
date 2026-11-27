@@ -226,3 +226,127 @@ class StradellaPainter extends CustomPainter {
   bool shouldRepaint(covariant StradellaPainter oldDelegate) =>
       oldDelegate.hints != hints || oldDelegate.useLetters != useLetters;
 }
+
+/// Mini-mappa della tastiera sinistra per una singola card: una finestra di
+/// poche colonne attorno all'accordo, coi tasti da premere colorati e il
+/// contorno sui tasti di riferimento (Do, Mi, La♭).
+class MiniStradellaPainter extends CustomPainter {
+  final StradellaHint h;
+  final bool useLetters;
+  final bool triangle;
+
+  MiniStradellaPainter(this.h, {required this.useLetters, this.triangle = false});
+
+  static const _refPcs = {0, 4, 8};
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final f0 = stradellaFifths(h.rootPc);
+    // Finestra: dalla colonna a sinistra fino alla quinta (a destra) + margine.
+    final minF = f0 - 2;
+    final maxF = f0 + 2;
+    const nCols = 5;
+    const rows = 6;
+    const labelW = 16.0;
+    const slant = 0.3;
+
+    final boardW = size.width - labelW;
+    final colW = boardW / (nCols + (rows - 1) * slant + 0.4);
+    final rowH = size.height / rows;
+    final radius = math.min(colW, rowH) * 0.4;
+
+    double cx(int f, int row) =>
+        labelW + (0.2 + (f - minF + 0.5) + (rows - 1 - row) * slant) * colW;
+    double cy(int row) => (row + 0.5) * rowH;
+
+    final basePaint = Paint()..color = const Color(0x1AF2E7D6);
+    final baseOutline = Paint()
+      ..color = const Color(0x2AF2E7D6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    // Griglia + contorno sui tasti di riferimento (fila basso).
+    for (int f = minF; f <= maxF; f++) {
+      final pc = pcFromFifths(f);
+      for (int r = 0; r < rows; r++) {
+        final c = Offset(cx(f, r), cy(r));
+        canvas.drawCircle(c, radius, basePaint);
+        canvas.drawCircle(c, radius, baseOutline);
+        if (r == StradRow.bass.index && _refPcs.contains(pc)) {
+          canvas.drawCircle(
+              c,
+              radius + 1,
+              Paint()
+                ..color = AppColors.cream
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1.4);
+        }
+      }
+    }
+
+    // Etichette file a sinistra.
+    for (int r = 0; r < rows; r++) {
+      final tp = TextPainter(
+        text: TextSpan(
+            text: stradRowShort[r],
+            style: const TextStyle(color: Color(0x99F2E7D6), fontSize: 8)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(labelW / 2 - tp.width / 2, cy(r) - tp.height / 2));
+    }
+
+    final bassC = Offset(cx(f0, StradRow.bass.index), cy(StradRow.bass.index));
+    final chordC = Offset(cx(f0, h.row.index), cy(h.row.index));
+
+    void fill(Offset c, Gradient g) => canvas.drawCircle(
+        c,
+        radius,
+        Paint()
+          ..shader = g.createShader(Rect.fromCircle(center: c, radius: radius)));
+
+    if (triangle) {
+      final ff = stradellaFifths((h.rootPc + 7) % 12);
+      final fifthC =
+          Offset(cx(ff, StradRow.bass.index), cy(StradRow.bass.index));
+      final path = Path()
+        ..moveTo(bassC.dx, bassC.dy)
+        ..lineTo(fifthC.dx, fifthC.dy)
+        ..lineTo(chordC.dx, chordC.dy)
+        ..close();
+      canvas.drawPath(path, Paint()..color = const Color(0x22C9A24B));
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = AppColors.brass
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5);
+      fill(fifthC, AppColors.stayGradient);
+    } else {
+      // Contrabbasso (3ª) tenue come basso alternato.
+      final cbC = Offset(
+          cx(f0, StradRow.counterbass.index), cy(StradRow.counterbass.index));
+      canvas.drawCircle(
+          cbC, radius * 0.85, Paint()..color = const Color(0x33C9A24B));
+    }
+
+    fill(bassC, AppColors.stayGradient);
+    fill(chordC, h.exact ? AppColors.stayGradient : AppColors.moveGradient);
+    if (!h.exact) {
+      canvas.drawCircle(
+          chordC,
+          radius + 1.5,
+          Paint()
+            ..color = AppColors.moveA
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant MiniStradellaPainter oldDelegate) =>
+      oldDelegate.h.symbol != h.symbol ||
+      oldDelegate.h.rootPc != h.rootPc ||
+      oldDelegate.h.row != h.row ||
+      oldDelegate.triangle != triangle ||
+      oldDelegate.useLetters != useLetters;
+}
